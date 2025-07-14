@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck } from '@/types';
 import { getDecks, saveDeck, createDefaultDeck } from '@/lib/data';
-import { BookOpen, Plus, Edit, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, LogOut } from 'lucide-react';
 
 export default function AdminPanel() {
     const [decks, setDecks] = useState<Deck[]>([]);
@@ -18,6 +18,14 @@ export default function AdminPanel() {
     };
 
     useEffect(() => {
+        // Check if user is already logged in
+        const adminAuth = localStorage.getItem('zikr-admin-auth');
+        if (adminAuth === 'authenticated') {
+            setIsAuthenticated(true);
+        }
+    }, []);
+
+    useEffect(() => {
         if (isAuthenticated) {
             loadDecks();
         }
@@ -25,11 +33,18 @@ export default function AdminPanel() {
 
     const handleAuth = () => {
         // Simple password protection for MVP
-        if (password === 'admin123') {
+        if (password === 'A63in360!') {
             setIsAuthenticated(true);
+            localStorage.setItem('zikr-admin-auth', 'authenticated');
         } else {
             alert('Invalid password');
         }
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setPassword('');
+        localStorage.removeItem('zikr-admin-auth');
     };
 
     const handleCreateDeck = () => {
@@ -89,11 +104,20 @@ export default function AdminPanel() {
     return (
         <div className='min-h-screen bg-gray-900 p-4'>
             <div className='max-w-6xl mx-auto'>
-                <header className='mb-8'>
-                    <h1 className='text-3xl font-bold text-white mb-2'>
-                        Admin Panel
-                    </h1>
-                    <p className='text-gray-300'>Manage decks and cards</p>
+                <header className='mb-8 flex justify-between items-start'>
+                    <div>
+                        <h1 className='text-3xl font-bold text-white mb-2'>
+                            Admin Panel
+                        </h1>
+                        <p className='text-gray-300'>Manage decks and cards</p>
+                    </div>
+                    <Button
+                        onClick={handleLogout}
+                        variant='outline'
+                        className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
+                        <LogOut className='w-4 h-4 mr-2' />
+                        Logout
+                    </Button>
                 </header>
 
                 <div className='mb-6'>

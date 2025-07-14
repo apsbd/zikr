@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
 import { getDeckById, saveDeck } from '@/lib/data';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
-import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X, LogOut } from 'lucide-react';
 
 export default function EditDeck() {
     const router = useRouter();
@@ -38,8 +38,17 @@ export default function EditDeck() {
         author: ''
     });
     const [searchQuery, setSearchQuery] = useState('');
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     useEffect(() => {
+        // Check authentication first
+        const adminAuth = localStorage.getItem('zikr-admin-auth');
+        if (adminAuth !== 'authenticated') {
+            router.push('/admin');
+            return;
+        }
+        setIsAuthenticated(true);
+
         const loadDeck = () => {
             const savedDeck = getDeckById(deckId);
             if (savedDeck) {
@@ -267,6 +276,11 @@ export default function EditDeck() {
         }
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('zikr-admin-auth');
+        router.push('/admin');
+    };
+
     // Filter cards based on search query
     const filteredCards = deck?.cards.filter(card => {
         if (!searchQuery.trim()) return true;
@@ -295,7 +309,7 @@ export default function EditDeck() {
         );
     };
 
-    if (!deck) {
+    if (!isAuthenticated || !deck) {
         return (
             <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
                 <div className='text-white'>Loading...</div>
@@ -306,20 +320,29 @@ export default function EditDeck() {
     return (
         <div className='min-h-screen bg-gray-900 p-4'>
             <div className='max-w-4xl mx-auto'>
-                <header className='mb-8 flex items-center gap-4'>
-                    <Button
-                        onClick={() => router.push('/admin')}
-                        variant='outline'
-                        className='border-gray-600 text-gray-300 hover:bg-gray-800'>
-                        <ArrowLeft className='w-4 h-4 mr-2' />
-                        Back to Admin
-                    </Button>
-                    <div>
-                        <h1 className='text-3xl font-bold text-white'>
-                            Edit Deck
-                        </h1>
-                        <p className='text-gray-300'>Manage deck details and cards</p>
+                <header className='mb-8 flex items-center justify-between'>
+                    <div className='flex items-center gap-4'>
+                        <Button
+                            onClick={() => router.push('/admin')}
+                            variant='outline'
+                            className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                            <ArrowLeft className='w-4 h-4 mr-2' />
+                            Back to Admin
+                        </Button>
+                        <div>
+                            <h1 className='text-3xl font-bold text-white'>
+                                Edit Deck
+                            </h1>
+                            <p className='text-gray-300'>Manage deck details and cards</p>
+                        </div>
                     </div>
+                    <Button
+                        onClick={handleLogout}
+                        variant='outline'
+                        className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
+                        <LogOut className='w-4 h-4 mr-2' />
+                        Logout
+                    </Button>
                 </header>
 
                 {/* Deck Metadata Section */}
