@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
 import { getDeckById, saveDeck } from '@/lib/data';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
-import { ArrowLeft, Plus, Edit, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Save, Upload } from 'lucide-react';
 
 export default function EditDeck() {
     const router = useRouter();
@@ -22,6 +22,8 @@ export default function EditDeck() {
         english: ''
     });
     const [isAddingCard, setIsAddingCard] = useState(false);
+    const [isUploadingCSV, setIsUploadingCSV] = useState(false);
+    const [csvFile, setCsvFile] = useState<File | null>(null);
 
     useEffect(() => {
         const loadDeck = () => {
@@ -109,6 +111,94 @@ export default function EditDeck() {
         setEditingCard(null);
     };
 
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type === 'text/csv') {
+            setCsvFile(file);
+        } else {
+            alert('Please select a valid CSV file');
+        }
+    };
+
+    const parseCSV = (text: string): Array<{arabic: string, bangla: string, english: string}> => {
+        const lines = text.split('\n').filter(line => line.trim());
+        const cards: Array<{arabic: string, bangla: string, english: string}> = [];
+        
+        // Skip header row if it exists
+        const startIndex = lines[0].toLowerCase().includes('arabic') || 
+                          lines[0].toLowerCase().includes('bangla') || 
+                          lines[0].toLowerCase().includes('english') ? 1 : 0;
+        
+        for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i];
+            // Simple CSV parsing - handles basic comma separation
+            const columns = line.split(',').map(col => col.trim().replace(/^"|"$/g, ''));
+            
+            if (columns.length >= 3) {
+                cards.push({
+                    arabic: columns[0],
+                    bangla: columns[1],
+                    english: columns[2]
+                });
+            }
+        }
+        
+        return cards;
+    };
+
+    const handleCSVUpload = async () => {
+        if (!csvFile || !deck) return;
+        
+        try {
+            const text = await csvFile.text();
+            const csvCards = parseCSV(text);
+            
+            if (csvCards.length === 0) {
+                alert('No valid cards found in CSV file');
+                return;
+            }
+            
+            // Convert CSV data to Card objects
+            const newCards: CardType[] = csvCards.map((csvCard, index) => {
+                const fsrsCard = initializeFSRSCard();
+                return {
+                    id: `csv-card-${Date.now()}-${index}`,
+                    front: csvCard.arabic,
+                    back: {
+                        bangla: csvCard.bangla,
+                        english: csvCard.english
+                    },
+                    fsrsData: {
+                        due: fsrsCard.due,
+                        stability: fsrsCard.stability,
+                        difficulty: fsrsCard.difficulty,
+                        elapsed_days: fsrsCard.elapsed_days,
+                        scheduled_days: fsrsCard.scheduled_days,
+                        reps: fsrsCard.reps,
+                        lapses: fsrsCard.lapses,
+                        state: fsrsCard.state,
+                        last_review: fsrsCard.last_review
+                    }
+                };
+            });
+            
+            // Add new cards to deck
+            setDeck({
+                ...deck,
+                cards: [...deck.cards, ...newCards]
+            });
+            
+            // Reset CSV upload state
+            setCsvFile(null);
+            setIsUploadingCSV(false);
+            
+            alert(`Successfully imported ${newCards.length} cards from CSV`);
+        } catch (error) {
+            console.error('Error parsing CSV:', error);
+            alert('Error parsing CSV file. Please check the format.');
+        }
+    };
+
     if (!deck) {
         return (
             <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
@@ -142,6 +232,12 @@ export default function EditDeck() {
                         className='bg-green-600 hover:bg-green-700'>
                         <Plus className='w-4 h-4 mr-2' />
                         Add Card
+                    </Button>
+                    <Button
+                        onClick={() => setIsUploadingCSV(true)}
+                        className='bg-purple-600 hover:bg-purple-700'>
+                        <Upload className='w-4 h-4 mr-2' />
+                        Upload CSV
                     </Button>
                     <Button
                         onClick={handleSaveDeck}
@@ -219,6 +315,80 @@ export default function EditDeck() {
                                 </Button>
                                 <Button
                                     onClick={() => setIsAddingCard(false)}
+                                    variant='outline'
+                                    className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                    Cancel
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* CSV Upload Form */}
+                {isUploadingCSV && (
+                    <Card className='mb-6 bg-gray-800 border-gray-700'>
+                        <CardHeader>
+                            <CardTitle className='text-white'>
+                                Upload CSV File
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className='space-y-4'>
+                            <div className='text-sm text-gray-300'>
+                                <p className='mb-2'>
+                                    Upload a CSV file with the following format:
+                                </p>
+                                <div className='bg-gray-700 p-3 rounded-lg font-mono text-xs'>
+                                    <div className='text-gray-400'>
+                                        Arabic,Bangla,English
+                                    </div>
+                                    <div className='text-white'>
+                                        كِتَابٌ,কিতাব,Book
+                                        <br />
+                                        قَلَمٌ,কলম,Pen
+                                        <br />
+                                        بَيْتٌ,ঘর,House
+                                    </div>
+                                </div>
+                                <p className='mt-2 text-xs text-gray-400'>
+                                    • Header row is optional
+                                    <br />
+                                    • Each row should have: Arabic, Bangla, English
+                                    <br />
+                                    • Use commas to separate columns
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label className='text-sm text-gray-300 mb-2 block'>
+                                    Select CSV File
+                                </label>
+                                <input
+                                    type='file'
+                                    accept='.csv'
+                                    onChange={handleFileUpload}
+                                    className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700'
+                                />
+                            </div>
+                            
+                            {csvFile && (
+                                <div className='text-sm text-green-400'>
+                                    Selected file: {csvFile.name} ({Math.round(csvFile.size / 1024)} KB)
+                                </div>
+                            )}
+                            
+                            <div className='flex gap-2'>
+                                <Button
+                                    onClick={handleCSVUpload}
+                                    disabled={!csvFile}
+                                    className='bg-purple-600 hover:bg-purple-700 disabled:opacity-50'>
+                                    <Upload className='w-4 h-4 mr-2' />
+                                    Import Cards
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setIsUploadingCSV(false);
+                                        setCsvFile(null);
+                                    }}
                                     variant='outline'
                                     className='border-gray-600 text-gray-300 hover:bg-gray-800'>
                                     Cancel
