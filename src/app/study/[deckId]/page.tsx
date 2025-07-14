@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
-import { getDeckById, saveDeck } from '@/lib/data';
+import { getDeckById, saveCardProgress } from '@/lib/database';
 import { reviewCard, getCardsForStudy, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 
@@ -26,28 +26,33 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   useEffect(() => {
     const loadDeck = async () => {
-      const resolvedParams = await params;
-      const foundDeck = getDeckById(resolvedParams.deckId);
-      if (!foundDeck) {
-        router.push('/');
-        return;
-      }
+      try {
+        const resolvedParams = await params;
+        const foundDeck = await getDeckById(resolvedParams.deckId);
+        if (!foundDeck) {
+          router.push('/');
+          return;
+        }
 
-      setDeck(foundDeck);
-      const cardsToStudy = getCardsForStudy(foundDeck.cards);
-      
-      if (cardsToStudy.length === 0) {
+        setDeck(foundDeck);
+        const cardsToStudy = getCardsForStudy(foundDeck.cards);
+        
+        if (cardsToStudy.length === 0) {
+          setLoading(false);
+          return;
+        }
+
+        setSession({
+          deckId: foundDeck.id,
+          cards: cardsToStudy,
+          currentIndex: 0,
+          completed: false,
+        });
         setLoading(false);
-        return;
+      } catch (error) {
+        console.error('Error loading deck:', error);
+        router.push('/');
       }
-
-      setSession({
-        deckId: foundDeck.id,
-        cards: cardsToStudy,
-        currentIndex: 0,
-        completed: false,
-      });
-      setLoading(false);
     };
 
     loadDeck();
@@ -60,6 +65,10 @@ export default function StudyPage({ params }: StudyPageProps) {
       const currentCard = session.cards[session.currentIndex];
       const updatedCard = reviewCard(currentCard, rating);
       
+      // Save progress to localStorage
+      saveCardProgress(updatedCard.id, updatedCard.fsrsData);
+      
+      // Update deck state with new card progress
       const updatedCards = deck.cards.map(card => 
         card.id === updatedCard.id ? updatedCard : card
       );
@@ -71,7 +80,6 @@ export default function StudyPage({ params }: StudyPageProps) {
       };
 
       setDeck(updatedDeck);
-      saveDeck(updatedDeck);
 
       const nextIndex = session.currentIndex + 1;
       if (nextIndex >= session.cards.length) {
@@ -88,17 +96,26 @@ export default function StudyPage({ params }: StudyPageProps) {
     router.push('/');
   };
 
-  const handleStudyAgain = () => {
+  const handleStudyAgain = async () => {
     if (!deck) return;
     
-    const cardsToStudy = getCardsForStudy(deck.cards);
-    if (cardsToStudy.length > 0) {
-      setSession({
-        deckId: deck.id,
-        cards: cardsToStudy,
-        currentIndex: 0,
-        completed: false,
-      });
+    try {
+      // Reload deck to get fresh data with updated progress
+      const freshDeck = await getDeckById(deck.id);
+      if (!freshDeck) return;
+      
+      setDeck(freshDeck);
+      const cardsToStudy = getCardsForStudy(freshDeck.cards);
+      if (cardsToStudy.length > 0) {
+        setSession({
+          deckId: freshDeck.id,
+          cards: cardsToStudy,
+          currentIndex: 0,
+          completed: false,
+        });
+      }
+    } catch (error) {
+      console.error('Error reloading deck:', error);
     }
   };
 

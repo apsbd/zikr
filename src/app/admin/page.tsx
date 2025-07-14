@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck } from '@/types';
-import { getDecks, saveDeck, createDefaultDeck } from '@/lib/data';
+import { getDecks, saveDeck, deleteDeck } from '@/lib/database';
+import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
 import { BookOpen, Plus, Edit, Trash2, LogOut } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -12,9 +13,13 @@ export default function AdminPanel() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
 
-    const loadDecks = () => {
-        const savedDecks = getDecks();
-        setDecks(savedDecks);
+    const loadDecks = async () => {
+        try {
+            const savedDecks = await getDecks();
+            setDecks(savedDecks);
+        } catch (error) {
+            console.error('Error loading decks:', error);
+        }
     };
 
     useEffect(() => {
@@ -47,28 +52,34 @@ export default function AdminPanel() {
         localStorage.removeItem('zikr-admin-auth');
     };
 
-    const handleCreateDeck = () => {
-        const newDeck = createDefaultDeck();
-        newDeck.id = `deck-${Date.now()}`;
-        newDeck.title = 'New Deck';
-        newDeck.description = 'A new deck for studying';
-        newDeck.cards = [];
-        newDeck.stats = { total: 0, new: 0, learning: 0, review: 0 };
+    const handleCreateDeck = async () => {
+        const newDeck: Deck = {
+            id: crypto.randomUUID(),
+            title: 'New Deck',
+            description: 'A new deck for studying',
+            author: 'Admin',
+            cards: [],
+            stats: { total: 0, new: 0, learning: 0, review: 0 },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
 
-        saveDeck(newDeck);
-        loadDecks();
+        const success = await saveDeck(newDeck);
+        if (success) {
+            loadDecks();
+        } else {
+            alert('Error creating deck. Please try again.');
+        }
     };
 
-    const handleDeleteDeck = (deckId: string) => {
+    const handleDeleteDeck = async (deckId: string) => {
         if (confirm('Are you sure you want to delete this deck?')) {
-            const updatedDecks = decks.filter((deck) => deck.id !== deckId);
-            if (typeof window !== 'undefined') {
-                localStorage.setItem(
-                    'zikr-decks',
-                    JSON.stringify(updatedDecks)
-                );
+            const success = await deleteDeck(deckId);
+            if (success) {
+                loadDecks();
+            } else {
+                alert('Error deleting deck. Please try again.');
             }
-            loadDecks();
         }
     };
 

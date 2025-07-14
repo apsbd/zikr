@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
-import { getDeckById, saveDeck } from '@/lib/data';
+import { getDeckById, saveDeck } from '@/lib/database';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
 import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X, LogOut } from 'lucide-react';
 
@@ -49,16 +49,21 @@ export default function EditDeck() {
         }
         setIsAuthenticated(true);
 
-        const loadDeck = () => {
-            const savedDeck = getDeckById(deckId);
-            if (savedDeck) {
-                setDeck(savedDeck);
-                setDeckMeta({
-                    title: savedDeck.title,
-                    author: savedDeck.author,
-                    description: savedDeck.description
-                });
-            } else {
+        const loadDeck = async () => {
+            try {
+                const savedDeck = await getDeckById(deckId);
+                if (savedDeck) {
+                    setDeck(savedDeck);
+                    setDeckMeta({
+                        title: savedDeck.title,
+                        author: savedDeck.author,
+                        description: savedDeck.description
+                    });
+                } else {
+                    router.push('/admin');
+                }
+            } catch (error) {
+                console.error('Error loading deck:', error);
                 router.push('/admin');
             }
         };
@@ -82,7 +87,7 @@ export default function EditDeck() {
         return !newErrors.title && !newErrors.author;
     };
 
-    const handleSaveDeck = () => {
+    const handleSaveDeck = async () => {
         if (!deck) return;
 
         if (!validateDeckMeta()) {
@@ -98,8 +103,12 @@ export default function EditDeck() {
             updatedAt: new Date()
         };
 
-        saveDeck(updatedDeck);
-        router.push('/admin');
+        const success = await saveDeck(updatedDeck);
+        if (success) {
+            router.push('/admin');
+        } else {
+            alert('Error saving deck. Please try again.');
+        }
     };
 
     const validateCard = () => {

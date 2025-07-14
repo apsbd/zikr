@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
-import { getDecks, getDeckDisplayInfo } from '@/lib/data';
+import { getDecks, getDeckDisplayInfo } from '@/lib/database';
 
 export default function Home() {
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -12,12 +12,16 @@ export default function Home() {
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const router = useRouter();
 
-  const loadDecks = () => {
-    const savedDecks = getDecks();
-    setDecks(savedDecks);
-    const displayInfo = savedDecks.map(deck => getDeckDisplayInfo(deck));
-    setDisplayDecks(displayInfo);
-    setLastUpdate(Date.now());
+  const loadDecks = async () => {
+    try {
+      const savedDecks = await getDecks();
+      setDecks(savedDecks);
+      const displayInfo = savedDecks.map(deck => getDeckDisplayInfo(deck));
+      setDisplayDecks(displayInfo);
+      setLastUpdate(Date.now());
+    } catch (error) {
+      console.error('Error loading decks:', error);
+    }
   };
 
   useEffect(() => {
