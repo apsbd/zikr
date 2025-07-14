@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
 import { getDeckById, saveDeck } from '@/lib/data';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
-import { ArrowLeft, Plus, Edit, Trash2, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X } from 'lucide-react';
 
 export default function EditDeck() {
     const router = useRouter();
@@ -28,12 +28,27 @@ export default function EditDeck() {
         bangla: '',
         english: ''
     });
+    const [deckMeta, setDeckMeta] = useState({
+        title: '',
+        author: '',
+        description: ''
+    });
+    const [deckMetaErrors, setDeckMetaErrors] = useState({
+        title: '',
+        author: ''
+    });
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         const loadDeck = () => {
             const savedDeck = getDeckById(deckId);
             if (savedDeck) {
                 setDeck(savedDeck);
+                setDeckMeta({
+                    title: savedDeck.title,
+                    author: savedDeck.author,
+                    description: savedDeck.description
+                });
             } else {
                 router.push('/admin');
             }
@@ -41,11 +56,35 @@ export default function EditDeck() {
         loadDeck();
     }, [deckId, router]);
 
+    const validateDeckMeta = () => {
+        const newErrors = {
+            title: '',
+            author: ''
+        };
+
+        if (!deckMeta.title.trim()) {
+            newErrors.title = 'Deck title is required';
+        }
+        if (!deckMeta.author.trim()) {
+            newErrors.author = 'Author name is required';
+        }
+
+        setDeckMetaErrors(newErrors);
+        return !newErrors.title && !newErrors.author;
+    };
+
     const handleSaveDeck = () => {
         if (!deck) return;
 
+        if (!validateDeckMeta()) {
+            return;
+        }
+
         const updatedDeck = {
             ...deck,
+            title: deckMeta.title.trim(),
+            author: deckMeta.author.trim(),
+            description: deckMeta.description.trim(),
             stats: getCardStats(deck.cards),
             updatedAt: new Date()
         };
@@ -228,6 +267,34 @@ export default function EditDeck() {
         }
     };
 
+    // Filter cards based on search query
+    const filteredCards = deck?.cards.filter(card => {
+        if (!searchQuery.trim()) return true;
+        
+        const query = searchQuery.toLowerCase().trim();
+        const arabic = card.front.toLowerCase();
+        const bangla = card.back.bangla.toLowerCase();
+        const english = card.back.english.toLowerCase();
+        
+        return arabic.includes(query) || 
+               bangla.includes(query) || 
+               english.includes(query);
+    }) || [];
+
+    // Helper function to highlight search terms in text
+    const highlightSearchTerm = (text: string, searchTerm: string) => {
+        if (!searchTerm.trim()) return text;
+        
+        const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const parts = text.split(regex);
+        
+        return parts.map((part, index) => 
+            regex.test(part) ? 
+                <span key={index} className="bg-yellow-400 text-gray-900 px-1 rounded">{part}</span> : 
+                part
+        );
+    };
+
     if (!deck) {
         return (
             <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
@@ -249,11 +316,89 @@ export default function EditDeck() {
                     </Button>
                     <div>
                         <h1 className='text-3xl font-bold text-white'>
-                            {deck.title}
+                            Edit Deck
                         </h1>
-                        <p className='text-gray-300'>{deck.description}</p>
+                        <p className='text-gray-300'>Manage deck details and cards</p>
                     </div>
                 </header>
+
+                {/* Deck Metadata Section */}
+                <Card className='mb-6 bg-gray-800 border-gray-700'>
+                    <CardHeader>
+                        <CardTitle className='text-white'>
+                            Deck Information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className='space-y-4'>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                Deck Title <span className='text-red-400'>*</span>
+                            </label>
+                            <input
+                                type='text'
+                                value={deckMeta.title}
+                                onChange={(e) => {
+                                    setDeckMeta({
+                                        ...deckMeta,
+                                        title: e.target.value
+                                    });
+                                    if (deckMetaErrors.title && e.target.value.trim()) {
+                                        setDeckMetaErrors({...deckMetaErrors, title: ''});
+                                    }
+                                }}
+                                placeholder='Enter deck title'
+                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
+                                    deckMetaErrors.title ? 'border-red-500' : 'border-gray-600'
+                                }`}
+                            />
+                            {deckMetaErrors.title && (
+                                <p className='text-red-400 text-sm mt-1'>{deckMetaErrors.title}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                Author <span className='text-red-400'>*</span>
+                            </label>
+                            <input
+                                type='text'
+                                value={deckMeta.author}
+                                onChange={(e) => {
+                                    setDeckMeta({
+                                        ...deckMeta,
+                                        author: e.target.value
+                                    });
+                                    if (deckMetaErrors.author && e.target.value.trim()) {
+                                        setDeckMetaErrors({...deckMetaErrors, author: ''});
+                                    }
+                                }}
+                                placeholder='Enter author name'
+                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
+                                    deckMetaErrors.author ? 'border-red-500' : 'border-gray-600'
+                                }`}
+                            />
+                            {deckMetaErrors.author && (
+                                <p className='text-red-400 text-sm mt-1'>{deckMetaErrors.author}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                Description
+                            </label>
+                            <textarea
+                                value={deckMeta.description}
+                                onChange={(e) => {
+                                    setDeckMeta({
+                                        ...deckMeta,
+                                        description: e.target.value
+                                    });
+                                }}
+                                placeholder='Enter deck description (optional)'
+                                rows={3}
+                                className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none'
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <div className='mb-6 flex gap-4'>
                     <Button
@@ -438,9 +583,36 @@ export default function EditDeck() {
                     </Card>
                 )}
 
+                {/* Search Cards */}
+                <div className='mb-6'>
+                    <div className='relative'>
+                        <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5' />
+                        <input
+                            type='text'
+                            placeholder='Search cards by Arabic, Bangla, or English...'
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className='w-full pl-10 pr-12 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors'
+                            >
+                                <X className='w-5 h-5' />
+                            </button>
+                        )}
+                    </div>
+                    {searchQuery && (
+                        <p className='text-sm text-gray-400 mt-2'>
+                            Showing {filteredCards.length} of {deck.cards.length} cards
+                        </p>
+                    )}
+                </div>
+
                 {/* Cards List */}
                 <div className='space-y-4'>
-                    {deck.cards.map((card) => (
+                    {filteredCards.map((card) => (
                         <Card
                             key={card.id}
                             className='bg-gray-800 border-gray-700'>
@@ -523,11 +695,11 @@ export default function EditDeck() {
                                     <div className='flex items-center justify-between'>
                                         <div className='flex-1'>
                                             <div className='text-white font-medium mb-1 arabic-text-list'>
-                                                {card.front}
+                                                {highlightSearchTerm(card.front, searchQuery)}
                                             </div>
                                             <div className='text-gray-300 text-sm'>
-                                                {card.back.bangla} •{' '}
-                                                {card.back.english}
+                                                {highlightSearchTerm(card.back.bangla, searchQuery)} •{' '}
+                                                {highlightSearchTerm(card.back.english, searchQuery)}
                                             </div>
                                         </div>
                                         <div className='flex gap-2'>
@@ -560,6 +732,17 @@ export default function EditDeck() {
                     <div className='text-center py-12'>
                         <p className='text-gray-400'>
                             No cards in this deck. Add your first card!
+                        </p>
+                    </div>
+                )}
+
+                {deck.cards.length > 0 && filteredCards.length === 0 && searchQuery && (
+                    <div className='text-center py-12'>
+                        <p className='text-gray-400'>
+                            No cards found matching "{searchQuery}"
+                        </p>
+                        <p className='text-sm text-gray-500 mt-2'>
+                            Try searching for Arabic, Bangla, or English text
                         </p>
                     </div>
                 )}

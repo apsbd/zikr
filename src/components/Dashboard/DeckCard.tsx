@@ -28,7 +28,7 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
           <BookOpen className="w-5 h-5" />
           {deck.title}
         </CardTitle>
-        <CardDescription className="text-gray-300">{deck.description}</CardDescription>
+        <CardDescription className="text-gray-300">by {deck.author}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">

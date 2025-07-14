@@ -124,7 +124,9 @@ export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
                     </button>
                     <button
                         onClick={() => handleRate(Rating.Easy)}
-                        className='btn-easy'></button>
+                        className='btn-easy'>
+                        Easy
+                    </button>
                 </div>
             )}
         </div>

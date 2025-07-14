@@ -38,6 +38,7 @@ export interface DeckDisplayInfo {
   id: string;
   title: string;
   description: string;
+  author: string;
   stats: {
     total: number;
     new: number;

@@ -1,0 +1,403 @@
+arabic,bangla,english
+هٰذَا,এটি (পুং),This (masculine)
+ذٰلِكَ,ঐটি (পুং),That (masculine)
+هٰذِهِ,এটি (স্ত্রী),This (feminine)
+تِلْكَ,ঐটি (স্ত্রী),That (feminine)
+هٰؤُلَاءِ,এগুলো,These (people)
+ذٰلِكُمْ,সেটি (পুং),That (for you)
+أُوۡلَٰئِكَ,তারা,Those (people)
+ٱلَّذِي,যে/যিনি (পুং),Who/which (masculine)
+ٱلَّتِي,যে/যিনি (স্ত্রী),Who/which (feminine)
+ٱلَّذِينَ,যারা (পুং),Who/those who (masculine plural)
+لَا إِلٰهَ,(কোনো) ইলাহ নেই,There is no god
+إِلَّا ٱللَّهَ,আল্লাহ ব্যতীত,Except Allah
+كَلَّا,কখনোই না,Never/No indeed
+لَنْ,করবে না,Will never
+لَمْ,করেনি,Did not
+مَا,না,Not/what
+لَيْسَ,না,Is not
+بَلَىٰ,হ্যাঁ অবশ্যই,Yes indeed
+غَيْرُ,না ব্যতীত,Other than
+دُونَ,ছাড়া ব্যতীত,Without/besides
+إِلَّا,ব্যতীত,Except
+نَعَمْ,হ্যাঁ,Yes
+أَلَا,সাবধান!,Beware!/Do not
+هُوَ,সে (পুং),He/it
+هُمْ,তারা (পুং),They (masculine)
+أَنْتَ,তুমি (পুং),You (masculine)
+أَنْتُمْ,তোমরা (পুং),You (masculine plural)
+أَنَا,আমি,I
+نَحْنُ,আমরা,We
+هِيَ,সে (স্ত্রী),She/it
+هُنَّ,তারা (স্ত্রী),They (feminine)
+أَنْتِ,তুমি (স্ত্রী),You (feminine)
+أَنْتُنَّ,তোমরা (স্ত্রী),You (feminine plural)
+هُمَا,তারা (যুগল),They (dual)
+أَنْتُمَا,তোমরা দুজন,You (dual)
+لَهُ,তার তাকে (পুং),For him/to him
+لَهُمْ,তাদের (পুং),For them (masculine)
+لَكَ,তোমার (পুং),For you (masculine)
+لَكُمْ,তোমাদের (পুং),For you (masculine plural)
+لِي,আমার,For me
+لَنَا,আমাদের,For us
+لَهَا,তার (স্ত্রী),For her
+لَهُنَّ,তাদের (স্ত্রী),For them (feminine)
+لَكِ,তোমার (স্ত্রী),For you (feminine)
+لَكُنَّ,তোমাদের (স্ত্রী),For you (feminine plural)
+لَهُمَا,তাদের (যুগল),For them (dual)
+لَكُمَا,তোমাদের (যুগল),For you (dual)
+فَوْقَ,উপরে,Above
+تَحْتَ,নিচে,Below/under
+بَيْنَ,মাঝখানে,Between
+خَلْفَ,পেছনে পরে,Behind/after
+أَمَامَ,সামনে,In front of
+وَرَاءَ,পিছনে,Behind
+يَمِينٌ,ডান দিকে,Right side
+شِمَالٌ,বাম দিকে,Left side
+حَوْلَ,চারপাশে,Around
+حَيْثُ,যেখানে-সেখানে,Where/wherever
+أَيْنَمَا,যেখানে-সেখানে,Wherever
+هُنَا,এখানে,Here
+هُنَالِكَ,সেখানে,There
+مَن,কে? যে,Who?/whoever
+مَتَى,কখন? যখন,When?
+أَيْنَ,কোথায়? সেখানে,Where?
+كَيْفَ,কিভাবে? যেমন,How?
+كَمْ,কতগুলো?,How many?
+أَيٌّ,কোনটি?,Which?/whichever
+أَنَّى,কোথা থেকে?,How?/from where?
+مَاذَا,কি? কি তা?,What?
+لِمَ,কেন?,Why?
+لِمَاذَا,কেন?,Why?
+لَوْلَا,যদি না কেন নয়,If not/why not
+لِمَن,কাদের জন্য?,For whom?
+هَلْ,কি?,Is it?/Do?
+ذُو,মালিক অধিকারী (পুং),Owner/possessor (masculine)
+ذَاتُ,মালিক অধিকারী (স্ত্রী),Owner/possessor (feminine)
+أُوْلُوا,মালিকগণ অধিকারীগণ,Owners/possessors
+أَهْلُ,পরিবার; জনজাতি,Family/people
+آلُ,পরিবার; অনুসারী,Family/followers
+سُبْحَانَ,মহিমা হোক দোষমুক্ত,Glory be to
+نِعْمَ,কী চমৎকার!,How excellent!
+بِئْسَ,কত নিকৃষ্ট!,How wretched!
+رَيْبٌ,সন্দেহ,Doubt
+سُوْءٌ,মন্দ,Evil/bad
+مِثْلُ,অনুরূপ সদৃশ,Like/similar to
+مَثَلٌ,উদাহরণ সাদৃশ্য,Example/parable
+مِمَّنْ,তার চেয়ে যিনি,From those who
+قَبْلَ,আগে,Before
+بَعْدَ,পরে,After
+حِيْنَ,সময় কাল,Time/when
+إِذْ,যখন (অতীতের জন্য),When (past)
+إِذَا,যখন (ভবিষ্যতের জন্য),When (future)
+ثُمَّ,তারপর ফলে,Then
+فَ,তখন সুতরাং,So/then
+بَلْ,বরং তবে,Rather/but
+عِنْدَ,নিকট কাছে,Near/with
+لَدَى,নিকট কাছে,Near/with
+لَدُنْ,নিকট কাছে,Near/with
+لَئِنْ,অবশ্যই যদি,If indeed
+إِنَّ,কিছুই নয়… শুধুমাত্র,Nothing... only
+مَا,কিছুই নয়… শুধুমাত্র,Nothing... only
+أَلَّا,যেন না; যাতে না,That not/lest
+بِمَا,যা দিয়ে; কেননা,With what/because
+عَمَّا,কী/যা সম্পর্কে,About what/from what
+فِيمَا,যার মধ্যে,In what
+كَمَا,যেমন,Just as
+لِمَا,কী জন্য; যার জন্য,For what/why
+مِمَّا,কোন্ কিছু থেকে,From what
+أَمَّا,সম্পর্কে,As for
+إِمَّا,যদি; অথবা,Either/if
+أَنَّمَا,যে,That
+إِنَّمَا,শুধুমাত্র,Only/but
+كَأَنَّمَا,যেন,As if
+كُلَّمَا,যখনই,Whenever
+لَمَّا,যখন; এখনো না,When/not yet
+بِ,সঙ্গে মধ্যে থেকে,With/by/in
+عَنْ,সম্পর্কে,About/from
+فِي,মধ্যে,In
+كَ,যেমন মত,Like/as
+لِ,জন্য,For
+لَ,জন্য,For
+مِنْ,থেকে,From
+إِلَى,দিকে প্রতি,To/towards
+تَ,শপথ করে,By (oath)
+حَتَّى,যতক্ষণ না,Until
+عَلَى,উপর,On/upon
+وَ,এবং; শপথ করে,And/by
+مَعَ,সঙ্গে,With
+يَا,হে!,O!
+يَا أَيُّهَا,হে!,O you who!
+قَدْ,নিশ্চয়,Indeed/already
+سَ,নিকট ভবিষ্যতের জন্য,Will (near future)
+سَوْفَ,ভবিষ্যতের জন্য,Will (future)
+لَ,নিশ্চিত হবে অর্থ,Surely will
+لَقَدْ,অবশ্যই ইতিমধ্যেই,Indeed/certainly
+لِ,যেন কেউ করুক (আদেশ সূচক),Let (command)
+إِنَّ,নিশ্চয় সত্যিই,Indeed/verily
+أَنَّ,যে,That
+كَأَنَّ,যেন,As if
+لٰكِنَّ,কিন্তু,But
+لَعَلَّ,যেন যাতে,Perhaps/may
+إِنْ,যদি,If
+إِيَّا,কেবল,Only
+عَسَى,সম্ভবত,Perhaps/may
+لَوْ,যদি,If
+أَوْ,অথবা,Or
+أَمْ,অথবা ?,Or?
+اَلْ,নির্দিষ্ট কিছু বোঝাতে,The (definite article)
+جِنٌّ,জিন,Jinn
+جُنُودٌ,বাহিনী,Armies
+مَيِّتٌ,মৃত,Dead
+إِنسٌ,মানবজাতি,Mankind
+بَعْضٌ,কিছু,Some
+كُلُّ,সকল,All/every
+رَبٌّ,পালনকর্তা রব,Lord
+الرَّحْمٰنُ,পরম দয়ালু,The Most Compassionate
+الرَّحِيمُ,দয়াময়,The Most Merciful
+السَّلَامُ,শান্তি,Peace
+السَّمِيعُ,সব শোনেন যিনি,The All-Hearing
+الشَّكُورُ,কৃতজ্ঞ,The Appreciative
+العَزِيزُ,পরাক্রমশালী,The Mighty
+العَظِيمُ,মহান,The Great
+الغَفُورُ,ক্ষমাশীল,The Forgiving
+القَدِيرُ,সর্বশক্তিমান,The All-Powerful
+النَّذِيرُ,সতর্ককারী,The Warner
+النَّصِيرُ,শক্তিশালী সাহায্যকারী,The Helper
+الوَكِيلُ,তত্ত্বাবধায়ক,The Trustee
+الأَوَّلُ,প্রথম,The First
+الآخِرُ,শেষ,The Last
+أُخْرَىٰ,অন্য (স্ত্রীলিঙ্গ),Other (feminine)
+الأَمِينُ,বিশ্বস্ত,The Trustworthy
+البَصِيرُ,স্পষ্ট দেখেন যিনি,The All-Seeing
+البَعِيدُ,দূর,Far
+التَّوَّابُ,অতিশয় ক্ষমাকারী,The Oft-Returning
+الحَفِيظُ,সংরক্ষণকারী,The Guardian
+الحَكِيمُ,প্রজ্ঞাবান জ্ঞানী,The Wise
+الحَلِيمُ,সহনশীল,The Forbearing
+الحَمِيدُ,প্রশংসনীয়,The Praiseworthy
+الحَمِيمُ,অন্তরঙ্গ বন্ধু,The Intimate Friend
+الخَبِيرُ,সবজান্তা,The All-Aware
+أَشَدُّ,সর্বাধিক কঠিন,Most severe/intense
+أَعْلَىٰ,উচ্চতম শ্রেষ্ঠ,Highest/most exalted
+أَعْلَمُ,অধিক জ্ঞানী,More knowing/most knowing
+أَقْرَبُ,নিকটতম,Nearest/closest
+أَكْبَرُ,বড় সবচেয়ে বড়,Greater/greatest
+أَكْثَرُ,অধিক সবচেয়ে বেশি,More/most
+أَحْسَنُ,উত্তম সবচেয়ে ভালো,Better/best
+أَحَقُّ,অধিক হকদার,More deserving
+أَدْنَىٰ,অধিক নিচু বা কাছের,Lower/nearer
+أَظْلَمُ,সবচেয়ে জালিম,Most unjust
+أَهْدَىٰ,অধিক হেদায়েতপ্রাপ্ত,More guided
+أَوْلَىٰ,অধিক নিকটবর্তী,More appropriate
+أَحَبُّ,অধিক প্রিয়,More beloved
+شَدِيدٌ,কঠিন শক্তিশালী,Severe/strong
+عَلِيٌّ,উচ্চ মহান,High/exalted
+عَلِيمٌ,জ্ঞানী,Knowing
+قَرِيبٌ,নিকটে,Near
+كَبِيرٌ,বড়,Big/great
+كَثِيرٌ,অনেক প্রচুর,Much/many
+سَرِيعٌ,দ্রুত তৎপর,Quick/swift
+قَهَّارٌ,প্রবল পরাক্রমশালী,The Dominant
+غَفَّارٌ,অতিশয় ক্ষমাশীল,The Oft-Forgiving
+قَلِيلٌ,অল্প,Little/few
+كَرِيمٌ,সম্মানিত উদার,Noble/generous
+لَطِيفٌ,কোমল সূক্ষ্ম,Gentle/subtle
+وَهَّابٌ,দানকারী,The Bestower
+رَسُولٌ,রাসূল,Messenger
+نَبِيٌّ,নবী,Prophet
+نَبِيُّونَ,নবীগণ,Prophets
+آدَمُ,আদম,Adam
+نُوحٌ,নূহ,Noah
+إِبْرَاهِيمُ,ইব্রাহিম,Abraham
+لُوطٌ,লূত,Lot
+إِسْمَاعِيلُ,ইসমাঈল,Ishmael
+إِسْحَاقُ,ইসহাক,Isaac
+يَعْقُوبُ,ইয়াকুব,Jacob
+يُوسُفُ,ইউসুফ,Joseph
+هُودٌ,হূদ,Hud
+شُعَيْبٌ,শুয়াইব,Shuaib
+صَالِحٌ,সালেহ,Salih
+مُوسَىٰ,মূসা,Moses
+عِيسَى,ঈসা,Jesus
+هَارُونُ,হারূন,Aaron
+دَاوُدُ,দাঊদ,David
+سُلَيْمَانُ,সুলাইমান,Solomon
+عَادٌ,আদ জাতি,The people of Aad
+ثَمُودُ,সামূদ জাতি,The people of Thamud
+فِرْعَوْنُ,ফিরআউন,Pharaoh
+هَامَانُ,হামান,Haman
+قَارُونُ,কারুন,Korah
+شَيْطَانٌ,শয়তান,Satan
+آيَةٌ,নিদর্শন,Sign/verse
+بَيِّنَةٌ,প্রমাণ,Clear proof
+أَنْعَامٌ,গবাদি পশু,Cattle
+جَبَلٌ,পাহাড়,Mountain
+بَحْرٌ,সাগর/নদী,Sea/river
+شَمْسٌ,সূর্য,Sun
+قَمَرٌ,চাঁদ,Moon
+لَيْلٌ,রাত,Night
+نَهَارٌ,দিন,Day
+أَرْضٌ,পৃথিবী,Earth
+سَمَاءٌ,আকাশ,Sky/heaven
+سَبْعٌ,সাত,Seven
+رِيحٌ,বাতাস,Wind
+صَاحِبٌ,সাথী সঙ্গী,Companion
+جَنَّةٌ,জান্নাত,Paradise
+جَهَنَّمُ,জাহান্নাম,Hell
+جَحِيمٌ,জাহান্নাম,Hellfire
+ثَوَابٌ,প্রতিদান,Reward
+عَذَابٌ,শাস্তি,Punishment
+نَعِيمٌ,সুখ ও আনন্দ,Bliss
+سَعِيرٌ,জ্বলন্ত আগুন,Blazing fire
+أَلِيمٌ,বেদনাদায়ক,Painful
+أَبَدًا,চিরকাল,Forever
+نَهْرٌ,নদী,River
+نَارٌ,আগুন,Fire
+وَيْلٌ,ধ্বংস হোক আফসোস হোক,Woe
+ٱلْآخِرَةُ,আখিরাত,The Hereafter
+قِيَامَةٌ,কিয়ামত,Resurrection
+سَاعَةٌ,কিয়ামতের ঘণ্টা,The Hour
+يَوْمٌ,দিন,Day
+يَوْمَئِذٍ,সেই দিন,That Day
+أَجَلٌ,নির্ধারিত সময়,Appointed time
+مُسَمًّى,নির্ধারিত স্থির,Appointed/fixed
+مَصِيرٌ,গন্তব্যস্থল,Destination
+مَأْوًى,আশ্রয়স্থল,Refuge/abode
+أَجْرٌ,প্রতিদান বিনিময়,Reward
+جَزَاءٌ,প্রতিদান পুরস্কার,Recompense
+عَاقِبَةٌ,পরিণতি শেষ,Consequence
+عِقَابٌ,পাপের ফলস্বরূপ শাস্তি,Punishment
+دِينٌ,ধর্ম; বিচার ব্যবস্থা,Religion/judgment
+حِكْمَةٌ,হিকমত; প্রজ্ঞা,Wisdom
+حَمْدٌ,প্রশংসা; কৃতজ্ঞতা,Praise
+صَلَاةٌ,সালাত; নামায,Prayer
+زَكَاةٌ,যাকাত; দান,Charity
+حَقٌّ,সত্য; সঠিক,Truth/right
+بَاطِلٌ,মিথ্যা,Falsehood
+نُورٌ,আলো,Light
+ظُلُمَاتٌ,অন্ধকার,Darkness
+مُبِينٌ,স্পষ্ট প্রকাশমান,Clear/manifest
+عَهْدٌ,অঙ্গীকার,Covenant
+مِيثَاقٌ,চুক্তি অঙ্গীকার,Pact/covenant
+مَلَكٌ,ফেরেশতা,Angel
+عَرْشٌ,আরশ সিংহাসন,Throne
+إِلٰهٌ,ইলাহ; উপাস্য,God/deity
+وَاحِدٌ,এক (পুং),One (masculine)
+وَاحِدَةٌ,এক (স্ত্রী),One (feminine)
+أَحَدٌ,এক,One
+إِحْدَىٰ,এক,One (feminine)
+كِتَابٌ,কিতাব; গ্রন্থ,Book
+قُرْآنٌ,কুরআন,Quran
+ٱلتَّوْرَاةُ,তাওরাত,Torah
+ٱلْإِنجِيلُ,ইনজিল,Gospel
+شَرِيكٌ,অংশীদার,Partner
+تَقْوَىٰ,তাকওয়া; ভয়; নিরাপত্তা,Piety/fear of Allah
+غَيْبٌ,অদৃশ্য; গায়েব,Unseen
+كَلِمَةٌ,শব্দ,Word
+شَهَادَةٌ,সাক্ষ্য,Testimony
+شَهِيدٌ,সাক্ষী; উপস্থিত,Witness
+أَعْمَالٌ,কাজ আমল,Deeds/works
+حَسَنَةٌ,ভালো কাজ,Good deed
+سَيِّئَةٌ,মন্দ কাজ,Bad deed
+খَيْرٌ,ভালো উত্তম,Good
+شَرٌّ,খারাপ মন্দ,Evil
+إِثْمٌ,পাপ,Sin
+ذَنْبٌ,গুনাহ পাপ,Sin/fault
+جُنَاحٌ,গুনাহ,Sin/fault
+حَرَامٌ,হারাম,Forbidden
+اِسْمٌ,নাম,Name
+حَدِيثٌ,কথা বাণী আলোচনা,Speech/narration
+بَأْسٌ,বিপদ দুর্দশা,Misfortune/hardship
+نَصِيبٌ,অংশ ভাগ,Share/portion
+فَضْلٌ,অনুগ্রহ কৃপা,Grace/favor
+نِعْمَةٌ,অনুগ্রহ নিয়ামত,Blessing
+آلَاءٌ,অনুগ্রহসমূহ,Favors/blessings
+طَيِّبَةٌ,পবিত্র ভালো,Pure/good
+مَاءٌ,পানি,Water
+مُلْكٌ,কর্তৃত্ব রাজত্ব,Kingdom/dominion
+سُلْطَانٌ,শক্তিশালী দলিল/প্রমান,Authority/proof
+فَوْزٌ,সফলতা,Success
+فَرِيقٌ,দল গোষ্ঠী,Group/party
+জَمِيعٌ,সবাই,All
+أَجْمَعُونَ,সবাই (সমষ্টিগত),All together
+سَوَاءٌ,সমান ন্যায়সঙ্গত,Equal/same
+إِذْنٌ,অনুমতি,Permission
+أُمٌّ,মা,Mother
+أَبٌ,বাবা,Father
+زَوْجٌ,স্ত্রী স্বামী,Spouse
+رَجُلٌ,পুরুষ,Man
+ٱمْرَأَةٌ,নারী,Woman
+وَلَدٌ,সন্তান,Child
+وَالِدٌ,পিতা-মাতা,Parent
+ذُرِّيَّةٌ,বংশধর সন্তান,Offspring
+ٱبْنٌ,পুত্র,Son
+بَنُونَ,পুত্রগণ,Sons
+أَخٌ,ভাই,Brother
+إِخْوَةٌ,ভাইয়েরা,Brothers
+مَوْلًى,অভিভাবক রক্ষক,Guardian/master
+فَمٌ,মুখ,Mouth
+عَيْنٌ,চোখ,Eye
+بَصَرٌ,দৃষ্টি,Sight
+وَجْهٌ,মুখমণ্ডল,Face
+لِسَانٌ,জিহ্বা ভাষা,Tongue/language
+قَلْبٌ,হৃদয়,Heart
+صَدْرٌ,বক্ষ বুক,Chest
+بَطْنٌ,পেট গর্ভ,Belly/womb
+يَدٌ,হাত,Hand
+رِجْلٌ,পা,Foot/leg
+نَفْسٌ,আত্মা,Soul/self
+رُوحٌ,রূহ আত্মা,Spirit
+قُوَّةٌ,শক্তি ক্ষমতা,Power/strength
+بَيْتٌ,ঘর,House
+دَارٌ,আবাস বসতভিটা,Abode/dwelling
+دُنْيَا,দুনিয়া,World
+سَبِيلٌ,পথ,Way/path
+صِرَاطٌ,সঠিক পথ,Straight path
+عَالَمُونَ,জগৎসমূহ,Worlds
+فِتْنَةٌ,ফিতনা পরীক্ষা,Trial/test
+قَرْيَةٌ,জনপদ শহর,Town/village
+مَالٌ,ধন-সম্পদ,Wealth/property
+مَتَاعٌ,ভোগ সম্পদ,Goods/enjoyment
+مَسْجِدٌ,মসজিদ,Mosque
+مَكَانٌ,স্থান অবস্থান,Place/position
+شَجَرٌ,গাছ,Tree
+أُمَّةٌ,জাতি উম্মত,Nation/community
+قَوْمٌ,কওম সম্প্রদায়,People/community
+إِنسَانٌ,মানুষ,Human being
+نَاسٌ,মানুষজন,People
+بَشَرٌ,মানবজাতি,Mankind
+ذَكَرٌ,পুরুষ,Male
+أُنْثَىٰ,নারী,Female
+عَبْدٌ,দাস,Servant/slave
+عَدُوٌّ,শত্রু,Enemy
+كُفَّارٌ,কাফিরগণ,Disbelievers
+مُجْرِمٌ,অপরাধী,Criminal
+مَلَأٌ,নেতৃবৃন্দ,Chiefs/leaders
+وَلِيٌّ,অভিভাবক বন্ধু,Guardian/friend
+دَابَّةٌ,জীবজন্তু জীবন্ত সৃষ্টি,Living creature
+دَرَجَاتٌ,মর্যাদা স্তর,Degrees/ranks
+سُنَّةٌ,পথ অভ্যাস,Way/practice
+شَفَاعَةٌ,সুপারিশ,Intercession
+عَدْلٌ,প্রতিদান,Justice
+لَعْنَةٌ,অভিশাপ,Curse
+لَيْتَ,যদি এমন হতো,If only
+مَدِينَةٌ,শহর,City
+مَرَضٌ,রোগ,Disease
+مَقَامٌ,অবস্থান,Station/position
+مَلِكٌ,রাজা,King
+مِلَّةٌ,ধর্ম,Religion/way
+نَبَأٌ,সংবাদ বার্তা,News/tidings
+أَعْمَىٰ,অন্ধ,Blind
+أُلُو ٱلْأَلْبَابِ,বুদ্ধিমান বিবেকসম্পন্ন,People of understanding
+بَرٌّ,জমিন সৎকর্মশীল,Land/righteous
+بَلَٰغٌ,পৌঁছানো বার্তা পৌঁছানো,Delivery/message
+بَنَاتٌ,কন্যা,Daughters
+بُشْرَىٰ,সুসংবাদ,Good news
+بَابٌ,দরজা,Door/gate
+تَأْوِيلٌ,ব্যাখ্যা তাফসীর,Interpretation
+تُرَابٌ,মাটি,Dust/earth
+ثَلَاثَةٌ,তিন,Three
+ثَمَرَاتٌ,ফল,Fruits
+حُدُودٌ,সীমা সীমারেখা,Boundaries/limits
+أَحْسَنُ,সর্বোত্তম সেরা,Best/most beautiful

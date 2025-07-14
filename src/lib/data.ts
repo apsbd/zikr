@@ -131,6 +131,7 @@ export function getDeckDisplayInfo(deck: Deck): DeckDisplayInfo {
     id: deck.id,
     title: deck.title,
     description: deck.description,
+    author: deck.author,
     stats: deck.stats,
     nextReviewTime,
     nextReviewCount,
