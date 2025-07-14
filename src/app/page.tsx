@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
 import { getDecks, getDeckDisplayInfo } from '@/lib/database';
+import { cleanupOldLocalStorageData } from '@/lib/migration';
 
 export default function Home() {
   const [decks, setDecks] = useState<Deck[]>([]);
@@ -25,6 +26,8 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Clean up old localStorage data on first load
+    cleanupOldLocalStorageData();
     loadDecks();
   }, []);
 

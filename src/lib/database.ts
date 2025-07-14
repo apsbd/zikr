@@ -2,6 +2,12 @@ import { supabase, type DbDeck, type DbCard } from './supabase';
 import { initializeFSRSCard, getCardStats } from './fsrs';
 import type { Deck, Card, DeckDisplayInfo } from '@/types';
 
+// Helper function to check if a string is a valid UUID
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 // Convert database deck to app deck format
 function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[]): Deck {
   const cards: Card[] = dbCards.map(dbCard => {
@@ -131,8 +137,11 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       .eq('id', deck.id)
       .single();
 
+    // Ensure deck has a valid UUID
+    const deckId = isValidUUID(deck.id) ? deck.id : crypto.randomUUID();
+    
     const deckData = {
-      id: deck.id,
+      id: deckId,
       title: deck.title,
       description: deck.description,
       author: deck.author,
@@ -144,7 +153,7 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       const { error: deckError } = await supabase
         .from('decks')
         .update(deckData)
-        .eq('id', deck.id);
+        .eq('id', deckId);
 
       if (deckError) {
         console.error('Error updating deck:', deckError);
@@ -169,7 +178,7 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
     const { data: existingCards } = await supabase
       .from('cards')
       .select('id')
-      .eq('deck_id', deck.id);
+      .eq('deck_id', deckId);
 
     const existingCardIds = existingCards?.map(card => card.id) || [];
     const currentCardIds = deck.cards.map(card => card.id);
@@ -187,24 +196,55 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       }
     }
 
-    // Upsert cards
-    const cardsData = deck.cards.map(card => ({
-      id: card.id,
-      deck_id: deck.id,
-      front: card.front,
-      back_bangla: card.back.bangla,
-      back_english: card.back.english,
-      updated_at: new Date().toISOString(),
-    }));
+    // Separate new cards from existing cards
+    const newCards = deck.cards.filter(card => !existingCardIds.includes(card.id));
+    const existingCardsToUpdate = deck.cards.filter(card => existingCardIds.includes(card.id));
 
-    if (cardsData.length > 0) {
-      const { error: cardsError } = await supabase
+    // Insert new cards
+    if (newCards.length > 0) {
+      const newCardsData = newCards.map(card => {
+        // Ensure we have a valid UUID for the card ID
+        const cardId = isValidUUID(card.id) ? card.id : crypto.randomUUID();
+        
+        return {
+          id: cardId,
+          deck_id: deckId,
+          front: card.front,
+          back_bangla: card.back.bangla,
+          back_english: card.back.english,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      });
+
+      const { error: insertError } = await supabase
         .from('cards')
-        .upsert(cardsData);
+        .insert(newCardsData);
 
-      if (cardsError) {
-        console.error('Error saving cards:', cardsError);
+      if (insertError) {
+        console.error('Error inserting new cards:', insertError);
+        console.error('Card data that failed:', newCardsData);
         return false;
+      }
+    }
+
+    // Update existing cards
+    if (existingCardsToUpdate.length > 0) {
+      for (const card of existingCardsToUpdate) {
+        const { error: updateError } = await supabase
+          .from('cards')
+          .update({
+            front: card.front,
+            back_bangla: card.back.bangla,
+            back_english: card.back.english,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', card.id);
+
+        if (updateError) {
+          console.error('Error updating card:', updateError);
+          return false;
+        }
       }
     }
 

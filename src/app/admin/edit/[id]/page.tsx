@@ -141,7 +141,7 @@ export default function EditDeck() {
 
         const fsrsCard = initializeFSRSCard();
         const card: CardType = {
-            id: `card-${Date.now()}`,
+            id: crypto.randomUUID(),
             front: newCard.front.trim(),
             back: {
                 bangla: newCard.bangla.trim(),
@@ -248,7 +248,7 @@ export default function EditDeck() {
             const newCards: CardType[] = csvCards.map((csvCard, index) => {
                 const fsrsCard = initializeFSRSCard();
                 return {
-                    id: `csv-card-${Date.now()}-${index}`,
+                    id: crypto.randomUUID(),
                     front: csvCard.arabic,
                     back: {
                         bangla: csvCard.bangla,
