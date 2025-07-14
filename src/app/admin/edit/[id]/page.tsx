@@ -21,9 +21,13 @@ export default function EditDeck() {
         bangla: '',
         english: ''
     });
-    const [isAddingCard, setIsAddingCard] = useState(false);
     const [isUploadingCSV, setIsUploadingCSV] = useState(false);
     const [csvFile, setCsvFile] = useState<File | null>(null);
+    const [errors, setErrors] = useState({
+        front: '',
+        bangla: '',
+        english: ''
+    });
 
     useEffect(() => {
         const loadDeck = () => {
@@ -50,17 +54,41 @@ export default function EditDeck() {
         router.push('/admin');
     };
 
+    const validateCard = () => {
+        const newErrors = {
+            front: '',
+            bangla: '',
+            english: ''
+        };
+
+        if (!newCard.front.trim()) {
+            newErrors.front = 'Arabic text is required';
+        }
+        if (!newCard.bangla.trim()) {
+            newErrors.bangla = 'Bangla translation is required';
+        }
+        if (!newCard.english.trim()) {
+            newErrors.english = 'English translation is required';
+        }
+
+        setErrors(newErrors);
+        return !newErrors.front && !newErrors.bangla && !newErrors.english;
+    };
+
     const handleAddCard = () => {
-        if (!deck || !newCard.front || !newCard.bangla || !newCard.english)
+        if (!deck) return;
+
+        if (!validateCard()) {
             return;
+        }
 
         const fsrsCard = initializeFSRSCard();
         const card: CardType = {
             id: `card-${Date.now()}`,
-            front: newCard.front,
+            front: newCard.front.trim(),
             back: {
-                bangla: newCard.bangla,
-                english: newCard.english
+                bangla: newCard.bangla.trim(),
+                english: newCard.english.trim()
             },
             fsrsData: {
                 due: fsrsCard.due,
@@ -80,8 +108,9 @@ export default function EditDeck() {
             cards: [...deck.cards, card]
         });
 
+        // Clear form only on successful add
         setNewCard({ front: '', bangla: '', english: '' });
-        setIsAddingCard(false);
+        setErrors({ front: '', bangla: '', english: '' });
     };
 
     const handleDeleteCard = (cardId: string) => {
@@ -228,12 +257,6 @@ export default function EditDeck() {
 
                 <div className='mb-6 flex gap-4'>
                     <Button
-                        onClick={() => setIsAddingCard(true)}
-                        className='bg-green-600 hover:bg-green-700'>
-                        <Plus className='w-4 h-4 mr-2' />
-                        Add Card
-                    </Button>
-                    <Button
                         onClick={() => setIsUploadingCSV(true)}
                         className='bg-purple-600 hover:bg-purple-700'>
                         <Upload className='w-4 h-4 mr-2' />
@@ -247,82 +270,99 @@ export default function EditDeck() {
                     </Button>
                 </div>
 
-                {/* Add Card Form */}
-                {isAddingCard && (
-                    <Card className='mb-6 bg-gray-800 border-gray-700'>
-                        <CardHeader>
-                            <CardTitle className='text-white'>
-                                Add New Card
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className='space-y-4'>
-                            <div>
-                                <label className='text-sm text-gray-300 mb-2 block'>
-                                    Arabic Text
-                                </label>
-                                <input
-                                    type='text'
-                                    value={newCard.front}
-                                    onChange={(e) =>
-                                        setNewCard({
-                                            ...newCard,
-                                            front: e.target.value
-                                        })
+                {/* Add Card Form - Always Visible */}
+                <Card className='mb-6 bg-gray-800 border-gray-700'>
+                    <CardHeader>
+                        <CardTitle className='text-white'>
+                            Add New Card
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className='space-y-4'>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                Arabic Text <span className='text-red-400'>*</span>
+                            </label>
+                            <input
+                                type='text'
+                                value={newCard.front}
+                                onChange={(e) => {
+                                    setNewCard({
+                                        ...newCard,
+                                        front: e.target.value
+                                    });
+                                    if (errors.front && e.target.value.trim()) {
+                                        setErrors({...errors, front: ''});
                                     }
-                                    placeholder='Enter Arabic text'
-                                    className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
-                                />
-                            </div>
-                            <div>
-                                <label className='text-sm text-gray-300 mb-2 block'>
-                                    Bangla Translation
-                                </label>
-                                <input
-                                    type='text'
-                                    value={newCard.bangla}
-                                    onChange={(e) =>
-                                        setNewCard({
-                                            ...newCard,
-                                            bangla: e.target.value
-                                        })
+                                }}
+                                placeholder='Enter Arabic text'
+                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
+                                    errors.front ? 'border-red-500' : 'border-gray-600'
+                                }`}
+                            />
+                            {errors.front && (
+                                <p className='text-red-400 text-sm mt-1'>{errors.front}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                Bangla Translation <span className='text-red-400'>*</span>
+                            </label>
+                            <input
+                                type='text'
+                                value={newCard.bangla}
+                                onChange={(e) => {
+                                    setNewCard({
+                                        ...newCard,
+                                        bangla: e.target.value
+                                    });
+                                    if (errors.bangla && e.target.value.trim()) {
+                                        setErrors({...errors, bangla: ''});
                                     }
-                                    placeholder='Enter Bangla translation'
-                                    className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
-                                />
-                            </div>
-                            <div>
-                                <label className='text-sm text-gray-300 mb-2 block'>
-                                    English Translation
-                                </label>
-                                <input
-                                    type='text'
-                                    value={newCard.english}
-                                    onChange={(e) =>
-                                        setNewCard({
-                                            ...newCard,
-                                            english: e.target.value
-                                        })
+                                }}
+                                placeholder='Enter Bangla translation'
+                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
+                                    errors.bangla ? 'border-red-500' : 'border-gray-600'
+                                }`}
+                            />
+                            {errors.bangla && (
+                                <p className='text-red-400 text-sm mt-1'>{errors.bangla}</p>
+                            )}
+                        </div>
+                        <div>
+                            <label className='text-sm text-gray-300 mb-2 block'>
+                                English Translation <span className='text-red-400'>*</span>
+                            </label>
+                            <input
+                                type='text'
+                                value={newCard.english}
+                                onChange={(e) => {
+                                    setNewCard({
+                                        ...newCard,
+                                        english: e.target.value
+                                    });
+                                    if (errors.english && e.target.value.trim()) {
+                                        setErrors({...errors, english: ''});
                                     }
-                                    placeholder='Enter English translation'
-                                    className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
-                                />
-                            </div>
-                            <div className='flex gap-2'>
-                                <Button
-                                    onClick={handleAddCard}
-                                    className='bg-green-600 hover:bg-green-700'>
-                                    Add Card
-                                </Button>
-                                <Button
-                                    onClick={() => setIsAddingCard(false)}
-                                    variant='outline'
-                                    className='border-gray-600 text-gray-300 hover:bg-gray-800'>
-                                    Cancel
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
+                                }}
+                                placeholder='Enter English translation'
+                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
+                                    errors.english ? 'border-red-500' : 'border-gray-600'
+                                }`}
+                            />
+                            {errors.english && (
+                                <p className='text-red-400 text-sm mt-1'>{errors.english}</p>
+                            )}
+                        </div>
+                        <div className='flex gap-2'>
+                            <Button
+                                onClick={handleAddCard}
+                                className='bg-green-600 hover:bg-green-700'>
+                                <Plus className='w-4 h-4 mr-2' />
+                                Add Card
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* CSV Upload Form */}
                 {isUploadingCSV && (

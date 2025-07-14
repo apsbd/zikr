@@ -138,35 +138,21 @@ body {
   transform: rotateY(180deg);
 }
 
-/* Hide content during transition to prevent bleeding */
-.flip-card:not(.flipped) .flip-card-back * {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0s, visibility 0s;
-}
-
-.flip-card.flipped .flip-card-back * {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.1s ease-in 0.2s, visibility 0s 0.2s;
-}
-
-.flip-card.flipped .flip-card-front * {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0s, visibility 0s;
-}
-
-.flip-card:not(.flipped) .flip-card-front * {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.1s ease-in 0.2s, visibility 0s 0.2s;
-}
-
 /* Remove hover effect that might interfere with flip */
 .flip-container:hover .flip-card:not(.flipped) {
   /* Remove or reduce this effect */
   /* transform: rotateY(3deg); */
+}
+
+/* Transitioning state - completely hide content during card changes */
+.flip-card.transitioning * {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+
+.flip-card.transitioning {
+  pointer-events: none;
 }
 
 /* Button animation */
