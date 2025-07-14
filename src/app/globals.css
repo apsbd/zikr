@@ -54,7 +54,7 @@ body {
 }
 
 .arabic-text {
-  font-family: 'Noto Sans Arabic', 'Segoe UI Arabic', 'Tahoma', sans-serif;
+  font-family: Arial, sans-serif;
   direction: rtl;
   text-align: center;
   font-weight: 500;
