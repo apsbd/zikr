@@ -53,13 +53,30 @@ body {
   min-height: 100vh;
 }
 
-.arabic-text {
-  font-family: Arial, sans-serif;
+.arabic-text, .arabic-text-list {
+  font-family: Arial, Helvetica, sans-serif;
   direction: rtl;
   text-align: center;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.6;
   font-feature-settings: 'liga' on, 'calt' on;
+}
+
+.arabic-text-list {
+    text-align: left;
+}
+
+/* Enhanced study card typography */
+.study-card-arabic {
+  font-size: clamp(1.875rem, 4vw, 3rem); /* 30px - 48px responsive */
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.study-card-translation {
+  font-size: clamp(1.25rem, 3vw, 1.5rem); /* 20px - 24px responsive */
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 /* Anki-style buttons */
@@ -79,26 +96,26 @@ body {
   @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg shadow-md transition-colors duration-200;
 }
 
-/* Card flip animation */
-.card-container {
+.flip-container {
   perspective: 1000px;
-  cursor: pointer;
+  width: 100%;
+  height: 100%;
 }
 
-.card-inner {
+.flip-card {
   position: relative;
   width: 100%;
   height: 100%;
   text-align: center;
-  transition: transform 0.6s ease-in-out;
+  transition: transform 0.3s ease-in-out;
   transform-style: preserve-3d;
 }
 
-.card-inner.flipped {
+.flip-card.flipped {
   transform: rotateY(180deg);
 }
 
-.card-front, .card-back {
+.flip-card-front, .flip-card-back {
   position: absolute;
   width: 100%;
   height: 100%;
@@ -108,14 +125,48 @@ body {
   background: #1f1f1f;
   border: 1px solid #404040;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  /* Ensure content is completely hidden when facing away */
+  overflow: hidden;
 }
 
-.card-back {
+.flip-card-back {
   transform: rotateY(180deg);
 }
 
-.card-container:hover .card-inner:not(.flipped) {
-  transform: rotateY(5deg);
+/* Hide content during transition to prevent bleeding */
+.flip-card:not(.flipped) .flip-card-back * {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0s, visibility 0s;
+}
+
+.flip-card.flipped .flip-card-back * {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.1s ease-in 0.2s, visibility 0s 0.2s;
+}
+
+.flip-card.flipped .flip-card-front * {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0s, visibility 0s;
+}
+
+.flip-card:not(.flipped) .flip-card-front * {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.1s ease-in 0.2s, visibility 0s 0.2s;
+}
+
+/* Remove hover effect that might interfere with flip */
+.flip-container:hover .flip-card:not(.flipped) {
+  /* Remove or reduce this effect */
+  /* transform: rotateY(3deg); */
 }
 
 /* Button animation */

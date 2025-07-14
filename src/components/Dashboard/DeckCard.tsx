@@ -3,20 +3,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Deck } from '@/types';
+import { DeckDisplayInfo } from '@/types';
 import { getCardsForStudy } from '@/lib/fsrs';
+import { formatNextReviewTime, getTimeIndicatorClass } from '@/lib/data';
 import { BookOpen, Clock, RotateCcw, Zap } from 'lucide-react';
 
 interface DeckCardProps {
-  deck: Deck;
+  deck: DeckDisplayInfo;
   onStudy: (deckId: string) => void;
 }
 
 export function DeckCard({ deck, onStudy }: DeckCardProps) {
-  const cardsToStudy = getCardsForStudy(deck.cards);
   const progressPercentage = deck.stats.total > 0 
     ? ((deck.stats.total - deck.stats.new) / deck.stats.total) * 100 
     : 0;
+  
+  const cardsForStudy = getCardsForStudy(deck.cards);
+  const studyCount = cardsForStudy.length;
 
   return (
     <Card className="w-full max-w-md bg-gray-800 border-gray-700 hover:bg-gray-700 transition-colors">
@@ -54,14 +57,40 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
             <span>Total: {deck.stats.total}</span>
           </div>
         </div>
+        
+        {/* Show due cards count if different from total state counts */}
+        {studyCount !== (deck.stats.new + deck.stats.learning + deck.stats.review) && (
+          <div className="pt-2 border-t border-gray-700">
+            <div className="flex items-center gap-2 text-sm text-yellow-400">
+              <Clock className="w-4 h-4" />
+              <span>Due now: {studyCount}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Next Review Time */}
+        <div className="space-y-2">
+          {deck.nextReviewTime ? (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Next review:</span>
+              <span className={`text-sm font-medium ${getTimeIndicatorClass(deck.nextReviewTime)}`}>
+                {formatNextReviewTime(deck.nextReviewTime)}
+              </span>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-400">No pending reviews</div>
+          )}
+        </div>
 
         <Button 
           onClick={() => onStudy(deck.id)}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-          disabled={cardsToStudy.length === 0}
+          disabled={studyCount === 0}
         >
-          {cardsToStudy.length > 0 
-            ? `Study Now (${cardsToStudy.length} cards)`
+          {studyCount > 0
+            ? `Study Now (${studyCount} cards)`
+            : deck.nextReviewTime && deck.nextReviewTime > new Date()
+            ? `Next review: ${formatNextReviewTime(deck.nextReviewTime)}`
             : 'No cards due'
           }
         </Button>

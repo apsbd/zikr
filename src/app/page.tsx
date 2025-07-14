@@ -3,20 +3,34 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
-import { Deck } from '@/types';
-import { getDecks } from '@/lib/data';
+import { Deck, DeckDisplayInfo } from '@/types';
+import { getDecks, getDeckDisplayInfo } from '@/lib/data';
 
 export default function Home() {
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [displayDecks, setDisplayDecks] = useState<DeckDisplayInfo[]>([]);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
   const router = useRouter();
 
-  useEffect(() => {
-    const loadDecks = () => {
-      const savedDecks = getDecks();
-      setDecks(savedDecks);
-    };
+  const loadDecks = () => {
+    const savedDecks = getDecks();
+    setDecks(savedDecks);
+    const displayInfo = savedDecks.map(deck => getDeckDisplayInfo(deck));
+    setDisplayDecks(displayInfo);
+    setLastUpdate(Date.now());
+  };
 
+  useEffect(() => {
     loadDecks();
+  }, []);
+
+  // Auto-refresh mechanism
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadDecks();
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleStudy = (deckId: string) => {
@@ -36,7 +50,7 @@ export default function Home() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {decks.map((deck) => (
+          {displayDecks.map((deck) => (
             <DeckCard
               key={deck.id}
               deck={deck}
@@ -45,7 +59,7 @@ export default function Home() {
           ))}
         </div>
 
-        {decks.length === 0 && (
+        {displayDecks.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-400">Loading decks...</p>
           </div>

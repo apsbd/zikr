@@ -32,37 +32,30 @@ export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <div className="card-container min-h-[300px]" onClick={!isFlipped ? handleFlip : undefined}>
-        <div className={cn("card-inner min-h-[300px]", isFlipped && "flipped", isFirstRender && "no-transition")}>
+      <div className="flip-container min-h-[300px]" onClick={!isFlipped ? handleFlip : undefined}>
+        <div className={cn("flip-card min-h-[300px]", isFlipped && "flipped", isFirstRender && "no-transition")}>
           {/* Front of card */}
-          <div className="card-front">
-            <CardContent className="p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
-              <div className="space-y-4">
-                <div className="text-5xl font-bold text-white mb-4 arabic-text leading-relaxed">
-                  {card.front}
-                </div>
-                <p className="text-gray-400 text-sm">Tap to reveal answer</p>
+          <div className="flip-card-front">
+            <div className="space-y-4">
+              <div className="study-card-arabic arabic-text text-white">
+                {card.front}
               </div>
-            </CardContent>
+              <p className="text-gray-400 text-sm">Tap to reveal answer</p>
+            </div>
           </div>
           
           {/* Back of card */}
-          <div className="card-back">
-            <CardContent className="p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
-              <div className="space-y-6 w-full">
-                <div className="text-4xl font-bold text-white mb-4 arabic-text leading-relaxed">
-                  {card.front}
+          <div className="flip-card-back">
+            <div className="space-y-6 w-full">
+              <div className="space-y-3">
+                <div className="study-card-translation text-gray-200 font-semibold">
+                  {card.back.bangla}
                 </div>
-                <div className="space-y-3">
-                  <div className="text-2xl font-semibold text-gray-200 leading-relaxed">
-                    {card.back.bangla}
-                  </div>
-                  <div className="text-xl text-gray-300 leading-relaxed">
-                    {card.back.english}
-                  </div>
+                <div className="study-card-translation text-gray-300">
+                  {card.back.english}
                 </div>
               </div>
-            </CardContent>
+            </div>
           </div>
         </div>
       </div>

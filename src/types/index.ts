@@ -22,6 +22,7 @@ export interface Deck {
   id: string;
   title: string;
   description: string;
+  author: string;
   cards: Card[];
   stats: {
     total: number;
@@ -29,6 +30,23 @@ export interface Deck {
     learning: number;
     review: number;
   };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DeckDisplayInfo {
+  id: string;
+  title: string;
+  description: string;
+  stats: {
+    total: number;
+    new: number;
+    learning: number;
+    review: number;
+  };
+  nextReviewTime: Date | null;
+  nextReviewCount: number;
+  cards: Card[];
 }
 
 export interface StudySession {
