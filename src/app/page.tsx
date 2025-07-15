@@ -11,85 +11,78 @@ import UserProfile from '@/components/Auth/UserProfile';
 import { useAuth } from '@/contexts/auth';
 
 export default function Home() {
-  const [decks, setDecks] = useState<Deck[]>([]);
-  const [displayDecks, setDisplayDecks] = useState<DeckDisplayInfo[]>([]);
-  const [lastUpdate, setLastUpdate] = useState(Date.now());
-  const router = useRouter();
-  const { user } = useAuth();
+    const [decks, setDecks] = useState<Deck[]>([]);
+    const [displayDecks, setDisplayDecks] = useState<DeckDisplayInfo[]>([]);
+    const [lastUpdate, setLastUpdate] = useState(Date.now());
+    const router = useRouter();
+    const { user } = useAuth();
 
-  const loadDecks = async () => {
-    try {
-      const savedDecks = await getDecks(user?.id);
-      setDecks(savedDecks);
-      const displayInfo = savedDecks.map(deck => getDeckDisplayInfo(deck));
-      setDisplayDecks(displayInfo);
-      setLastUpdate(Date.now());
-    } catch (error) {
-      console.error('Error loading decks:', error);
-    }
-  };
+    const loadDecks = async () => {
+        try {
+            const savedDecks = await getDecks(user?.id);
+            setDecks(savedDecks);
+            const displayInfo = savedDecks.map((deck) =>
+                getDeckDisplayInfo(deck)
+            );
+            setDisplayDecks(displayInfo);
+            setLastUpdate(Date.now());
+        } catch (error) {
+            console.error('Error loading decks:', error);
+        }
+    };
 
-  useEffect(() => {
-    // Clean up old localStorage data on first load
-    cleanupOldLocalStorageData();
-  }, []);
+    useEffect(() => {
+        // Clean up old localStorage data on first load
+        cleanupOldLocalStorageData();
+    }, []);
 
-  // Load decks when user is available
-  useEffect(() => {
-    if (user) {
-      loadDecks();
-    }
-  }, [user]);
+    // Load decks when user is available
+    useEffect(() => {
+        if (user) {
+            loadDecks();
+        }
+    }, [user]);
 
-  // Auto-refresh mechanism
-  useEffect(() => {
-    if (user) {
-      const interval = setInterval(() => {
-        loadDecks();
-      }, 60000); // Check every minute
+    // Auto-refresh mechanism
+    useEffect(() => {
+        if (user) {
+            const interval = setInterval(() => {
+                loadDecks();
+            }, 60000); // Check every minute
 
-      return () => clearInterval(interval);
-    }
-  }, [user]);
+            return () => clearInterval(interval);
+        }
+    }, [user]);
 
-  const handleStudy = (deckId: string) => {
-    router.push(`/study/${deckId}`);
-  };
+    const handleStudy = (deckId: string) => {
+        router.push(`/study/${deckId}`);
+    };
 
-  return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-background py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <UserProfile />
-          </div>
-          
-          <header className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">
-              Zikr
-            </h1>
-            <p className="text-muted-foreground">
-              Learn Arabic through spaced repetition
-            </p>
-          </header>
+    return (
+        <ProtectedRoute>
+            <div className='min-h-screen bg-background'>
+                <UserProfile />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {displayDecks.map((deck) => (
-              <DeckCard
-                key={deck.id}
-                deck={deck}
-                onStudy={handleStudy}
-              />
-            ))}
-          </div>
+                <div className='max-w-4xl mx-auto py-8 px-4'>
+                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                        {displayDecks.map((deck) => (
+                            <DeckCard
+                                key={deck.id}
+                                deck={deck}
+                                onStudy={handleStudy}
+                            />
+                        ))}
+                    </div>
 
-          {displayDecks.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading decks...</p>
+                    {displayDecks.length === 0 && (
+                        <div className='text-center py-12'>
+                            <p className='text-muted-foreground'>
+                                Loading decks...
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
-          )}
-        </div>
-      </div>
-    </ProtectedRoute>
-  );
+        </ProtectedRoute>
+    );
 }
