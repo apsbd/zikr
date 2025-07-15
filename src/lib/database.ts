@@ -15,14 +15,18 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
     
     if (userId) {
       // Get user progress from database
-      const { data: progress } = await supabase
+      const { data: progressArray, error } = await supabase
         .from('user_progress')
         .select('*')
         .eq('user_id', userId)
-        .eq('card_id', dbCard.id)
-        .single();
+        .eq('card_id', dbCard.id);
       
-      if (progress) {
+      if (error) {
+        console.log('Error querying progress for card:', dbCard.id, 'error:', error.message);
+        fsrsData = initializeFSRSCard();
+      } else if (progressArray && progressArray.length > 0) {
+        const progress = progressArray[0]; // Take the first (should be only) result
+        console.log('Found progress for card:', dbCard.id, progress);
         fsrsData = {
           state: progress.state,
           difficulty: progress.difficulty,
@@ -35,6 +39,7 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
           last_review: progress.last_review ? new Date(progress.last_review) : undefined,
         };
       } else {
+        console.log('No progress data for card:', dbCard.id);
         fsrsData = initializeFSRSCard();
       }
     } else {
@@ -286,6 +291,8 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
 export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'], userId?: string): Promise<void> {
   try {
     if (userId) {
+      console.log('Saving progress for user:', userId, 'card:', cardId, 'data:', fsrsData);
+      
       // Save to database for authenticated users
       const progressData = {
         user_id: userId,
@@ -304,14 +311,16 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
       };
 
       // Try to update existing progress first
-      const { data: existing } = await supabase
+      const { data: existingArray } = await supabase
         .from('user_progress')
         .select('id')
         .eq('user_id', userId)
-        .eq('card_id', cardId)
-        .single();
+        .eq('card_id', cardId);
 
+      const existing = existingArray && existingArray.length > 0;
+      
       if (existing) {
+        console.log('Updating existing progress for card:', cardId);
         const { error } = await supabase
           .from('user_progress')
           .update(progressData)
@@ -320,14 +329,19 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
         
         if (error) {
           console.error('Error updating user progress:', error);
+        } else {
+          console.log('Successfully updated progress for card:', cardId);
         }
       } else {
+        console.log('Creating new progress for card:', cardId);
         const { error } = await supabase
           .from('user_progress')
           .insert({ ...progressData, created_at: new Date().toISOString() });
         
         if (error) {
           console.error('Error inserting user progress:', error);
+        } else {
+          console.log('Successfully created progress for card:', cardId);
         }
       }
     } else {

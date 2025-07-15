@@ -49,32 +49,44 @@ export default function EditDeck() {
         const adminAuth = localStorage.getItem('zikr-admin-auth');
         const isUserAdmin = user?.email === 'mohiuddin.007@gmail.com';
         
+        console.log('Auth check - adminAuth:', adminAuth, 'isUserAdmin:', isUserAdmin, 'user:', user);
+        
         if (adminAuth !== 'authenticated' && !isUserAdmin) {
+            console.log('Authentication failed, redirecting to admin');
             router.push('/admin');
             return;
         }
+        console.log('Authentication passed, setting isAuthenticated to true');
         setIsAuthenticated(true);
+    }, [user, router]);
 
-        const loadDeck = async () => {
-            try {
-                const savedDeck = await getDeckById(deckId, user?.id);
-                if (savedDeck) {
-                    setDeck(savedDeck);
-                    setDeckMeta({
-                        title: savedDeck.title,
-                        author: savedDeck.author,
-                        description: savedDeck.description
-                    });
-                } else {
+    useEffect(() => {
+        if (isAuthenticated) {
+            const loadDeck = async () => {
+                try {
+                    console.log('Loading deck with ID:', deckId);
+                    // Admin should see all decks without user filtering
+                    const savedDeck = await getDeckById(deckId);
+                    console.log('Loaded deck:', savedDeck);
+                    if (savedDeck) {
+                        setDeck(savedDeck);
+                        setDeckMeta({
+                            title: savedDeck.title,
+                            author: savedDeck.author,
+                            description: savedDeck.description
+                        });
+                    } else {
+                        console.log('No deck found, redirecting to admin');
+                        router.push('/admin');
+                    }
+                } catch (error) {
+                    console.error('Error loading deck:', error);
                     router.push('/admin');
                 }
-            } catch (error) {
-                console.error('Error loading deck:', error);
-                router.push('/admin');
-            }
-        };
-        loadDeck();
-    }, [deckId, router]);
+            };
+            loadDeck();
+        }
+    }, [isAuthenticated, deckId, router]);
 
     const validateDeckMeta = () => {
         const newErrors = {

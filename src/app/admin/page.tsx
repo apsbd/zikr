@@ -19,7 +19,8 @@ export default function AdminPanel() {
 
     const loadDecks = async () => {
         try {
-            const savedDecks = await getDecks(user?.id);
+            // Admin should see all decks without user filtering
+            const savedDecks = await getDecks();
             setDecks(savedDecks);
         } catch (error) {
             console.error('Error loading decks:', error);

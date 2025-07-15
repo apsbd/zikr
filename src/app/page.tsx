@@ -32,17 +32,25 @@ export default function Home() {
   useEffect(() => {
     // Clean up old localStorage data on first load
     cleanupOldLocalStorageData();
-    loadDecks();
   }, []);
+
+  // Load decks when user is available
+  useEffect(() => {
+    if (user) {
+      loadDecks();
+    }
+  }, [user]);
 
   // Auto-refresh mechanism
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadDecks();
-    }, 60000); // Check every minute
+    if (user) {
+      const interval = setInterval(() => {
+        loadDecks();
+      }, 60000); // Check every minute
 
-    return () => clearInterval(interval);
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   const handleStudy = (deckId: string) => {
     router.push(`/study/${deckId}`);
