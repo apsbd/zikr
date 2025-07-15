@@ -83,20 +83,62 @@ export default function LandingPage() {
 
     const handleUseWebVersion = () => {
         // Navigate to the app (auth will be handled by ProtectedRoute)
-        router.push('/');
+        router.push('/login');
     };
 
     return (
         <ScrollArea
             className='h-screen w-full'
             style={{ height: 'calc(100vh)' }}>
-            <div className='min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col items-center justify-center p-4 relative overflow-hidden'>
+            <div className='min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col p-4 relative overflow-hidden'>
                 {/* Background decoration */}
                 <div className='absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none' />
                 <div className='absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl' />
                 <div className='absolute bottom-20 right-10 w-96 h-96 bg-primary/3 rounded-full blur-3xl' />
 
-                <div className='relative z-10 max-w-4xl mx-auto text-center'>
+                {/* Top Navigation */}
+                <div className='relative z-10 w-full max-w-6xl mx-auto flex justify-between items-center py-6'>
+                    <div className='flex items-center gap-2'>
+                        <div className='w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center'>
+                            <svg
+                                className='w-5 h-5 text-primary'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'>
+                                <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    strokeWidth={1.5}
+                                    d='M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'
+                                />
+                            </svg>
+                        </div>
+                        <span className='text-xl font-bold'>Zikr</span>
+                    </div>
+
+                    <Button
+                        onClick={handleUseWebVersion}
+                        variant='outline'
+                        size='sm'
+                        className='bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80'>
+                        <svg
+                            className='w-4 h-4 mr-2'
+                            fill='none'
+                            stroke='currentColor'
+                            viewBox='0 0 24 24'>
+                            <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                strokeWidth={2}
+                                d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+                            />
+                        </svg>
+                        Login/Signup
+                    </Button>
+                </div>
+
+                {/* Main Content */}
+                <div className='relative z-10 max-w-4xl mx-auto text-center flex-1 flex flex-col justify-center -mt-20'>
                     {/* App Icon */}
                     <div className='mb-8'>
                         <div className='w-20 h-20 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-4'>
@@ -196,7 +238,7 @@ export default function LandingPage() {
 
                     {/* Call to Action */}
                     <div className='space-y-6'>
-                        <div className='flex flex-col sm:flex-row gap-4 justify-center items-center'>
+                        <div className='flex justify-center'>
                             {canInstall && (
                                 <Button
                                     onClick={handleInstallApp}
@@ -217,32 +259,12 @@ export default function LandingPage() {
                                     Install App
                                 </Button>
                             )}
-
-                            <Button
-                                onClick={handleUseWebVersion}
-                                variant='outline'
-                                size='lg'
-                                className='px-8 py-6 text-lg font-semibold border-2 hover:bg-muted/50 transform hover:scale-105 transition-all duration-200'>
-                                <svg
-                                    className='w-5 h-5 mr-2'
-                                    fill='none'
-                                    stroke='currentColor'
-                                    viewBox='0 0 24 24'>
-                                    <path
-                                        strokeLinecap='round'
-                                        strokeLinejoin='round'
-                                        strokeWidth={2}
-                                        d='M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0 0V3'
-                                    />
-                                </svg>
-                                Use Web Version
-                            </Button>
                         </div>
 
                         {isIOS && canInstall && (
                             <p className='text-sm text-muted-foreground'>
                                 📱 On iOS: Tap "Install App" for instructions,
-                                or use the web version directly
+                                or use "Login/Signup" to access the web version
                             </p>
                         )}
                     </div>
