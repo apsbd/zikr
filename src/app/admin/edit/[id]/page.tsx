@@ -5,9 +5,9 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
-import { getDeckById, saveDeck } from '@/lib/database';
+import { getDeckById, saveDeck, initializeUserProfile, isUserAdmin } from '@/lib/database';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
-import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X, LogOut } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import { useAuth } from '@/contexts/auth';
@@ -16,7 +16,7 @@ export default function EditDeck() {
     const router = useRouter();
     const params = useParams();
     const deckId = params.id as string;
-    const { user } = useAuth();
+    const { user, loading } = useAuth();
 
     const [deck, setDeck] = useState<Deck | null>(null);
     const [editingCard, setEditingCard] = useState<CardType | null>(null);
@@ -43,31 +43,41 @@ export default function EditDeck() {
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
-        // Check authentication first
-        const adminAuth = localStorage.getItem('zikr-admin-auth');
-        const isUserAdmin = user?.email === 'mohiuddin.007@gmail.com';
+        // Wait for auth to load before checking
+        if (loading || !user) return;
         
-        console.log('Auth check - adminAuth:', adminAuth, 'isUserAdmin:', isUserAdmin, 'user:', user);
+        const checkUserRole = async () => {
+            try {
+                // Initialize user profile if it doesn't exist
+                await initializeUserProfile(user.id, user.email || '');
+                
+                // Check if user has admin privileges
+                const adminStatus = await isUserAdmin(user.id);
+                
+                if (!adminStatus) {
+                    router.push('/admin');
+                    return;
+                }
+                
+                setIsAuthenticated(true);
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                router.push('/admin');
+            }
+        };
         
-        if (adminAuth !== 'authenticated' && !isUserAdmin) {
-            console.log('Authentication failed, redirecting to admin');
-            router.push('/admin');
-            return;
-        }
-        console.log('Authentication passed, setting isAuthenticated to true');
-        setIsAuthenticated(true);
-    }, [user, router]);
+        checkUserRole();
+    }, [user, loading, router]);
 
     useEffect(() => {
         if (isAuthenticated) {
             const loadDeck = async () => {
                 try {
-                    console.log('Loading deck with ID:', deckId);
                     // Admin should see all decks without user filtering
                     const savedDeck = await getDeckById(deckId);
-                    console.log('Loaded deck:', savedDeck);
                     if (savedDeck) {
                         setDeck(savedDeck);
                         setDeckMeta({
@@ -76,7 +86,6 @@ export default function EditDeck() {
                             description: savedDeck.description
                         });
                     } else {
-                        console.log('No deck found, redirecting to admin');
                         router.push('/admin');
                     }
                 } catch (error) {
@@ -112,6 +121,9 @@ export default function EditDeck() {
             return;
         }
 
+        // Clear previous messages
+        setSaveMessage(null);
+
         const updatedDeck = {
             ...deck,
             title: deckMeta.title.trim(),
@@ -123,9 +135,11 @@ export default function EditDeck() {
 
         const success = await saveDeck(updatedDeck);
         if (success) {
-            router.push('/admin');
+            setSaveMessage({ type: 'success', text: 'Deck saved successfully!' });
+            // Auto-clear success message after 3 seconds
+            setTimeout(() => setSaveMessage(null), 3000);
         } else {
-            alert('Error saving deck. Please try again.');
+            setSaveMessage({ type: 'error', text: 'Error saving deck. Please try again.' });
         }
     };
 
@@ -303,10 +317,6 @@ export default function EditDeck() {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('zikr-admin-auth');
-        router.push('/admin');
-    };
 
     // Filter cards based on search query
     const filteredCards = deck?.cards.filter(card => {
@@ -336,58 +346,50 @@ export default function EditDeck() {
         );
     };
 
-    if (!isAuthenticated || !deck) {
+    if (loading || !isAuthenticated || !deck) {
         return (
-            <div className='min-h-screen bg-gray-900 flex items-center justify-center'>
-                <div className='text-white'>Loading...</div>
+            <div className='min-h-screen bg-background flex items-center justify-center'>
+                <div className='text-foreground'>Loading...</div>
             </div>
         );
     }
 
     return (
         <ProtectedRoute>
-            <div className='min-h-screen bg-gray-900 p-4'>
+            <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-4xl mx-auto'>
                     <div className="mb-6">
                         <UserProfile />
                     </div>
                     
-                    <header className='mb-8 flex items-center justify-between'>
+                    <header className='mb-8'>
                         <div className='flex items-center gap-4'>
                             <Button
                                 onClick={() => router.push('/admin')}
-                                variant='outline'
-                                className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                variant='outline'>
                                 <ArrowLeft className='w-4 h-4 mr-2' />
                                 Back to Admin
                             </Button>
                             <div>
-                                <h1 className='text-3xl font-bold text-white'>
+                                <h1 className='text-3xl font-bold text-foreground'>
                                     Edit Deck
                                 </h1>
-                                <p className='text-gray-300'>Manage deck details and cards</p>
+                                <p className='text-muted-foreground'>Manage deck details and cards</p>
                             </div>
                         </div>
-                        <Button
-                            onClick={handleLogout}
-                            variant='outline'
-                            className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
-                            <LogOut className='w-4 h-4 mr-2' />
-                            Logout
-                        </Button>
                     </header>
 
                 {/* Deck Metadata Section */}
-                <Card className='mb-6 bg-gray-800 border-gray-700'>
+                <Card className='mb-6'>
                     <CardHeader>
-                        <CardTitle className='text-white'>
+                        <CardTitle>
                             Deck Information
                         </CardTitle>
                     </CardHeader>
                     <CardContent className='space-y-4'>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
-                                Deck Title <span className='text-red-400'>*</span>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
+                                Deck Title <span className='text-destructive'>*</span>
                             </label>
                             <input
                                 type='text'
@@ -402,17 +404,17 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter deck title'
-                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
-                                    deckMetaErrors.title ? 'border-red-500' : 'border-gray-600'
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                    deckMetaErrors.title ? 'border-destructive' : 'border-border'
                                 }`}
                             />
                             {deckMetaErrors.title && (
-                                <p className='text-red-400 text-sm mt-1'>{deckMetaErrors.title}</p>
+                                <p className='text-destructive text-sm mt-1'>{deckMetaErrors.title}</p>
                             )}
                         </div>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
-                                Author <span className='text-red-400'>*</span>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
+                                Author <span className='text-destructive'>*</span>
                             </label>
                             <input
                                 type='text'
@@ -427,16 +429,16 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter author name'
-                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
-                                    deckMetaErrors.author ? 'border-red-500' : 'border-gray-600'
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                    deckMetaErrors.author ? 'border-destructive' : 'border-border'
                                 }`}
                             />
                             {deckMetaErrors.author && (
-                                <p className='text-red-400 text-sm mt-1'>{deckMetaErrors.author}</p>
+                                <p className='text-destructive text-sm mt-1'>{deckMetaErrors.author}</p>
                             )}
                         </div>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
                                 Description
                             </label>
                             <textarea
@@ -449,7 +451,7 @@ export default function EditDeck() {
                                 }}
                                 placeholder='Enter deck description (optional)'
                                 rows={3}
-                                className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 resize-none'
+                                className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground resize-none'
                             />
                         </div>
                     </CardContent>
@@ -458,29 +460,39 @@ export default function EditDeck() {
                 <div className='mb-6 flex gap-4'>
                     <Button
                         onClick={() => setIsUploadingCSV(true)}
-                        className='bg-purple-600 hover:bg-purple-700'>
+                        variant='secondary'>
                         <Upload className='w-4 h-4 mr-2' />
                         Upload CSV
                     </Button>
                     <Button
-                        onClick={handleSaveDeck}
-                        className='bg-blue-600 hover:bg-blue-700'>
+                        onClick={handleSaveDeck}>
                         <Save className='w-4 h-4 mr-2' />
                         Save Deck
                     </Button>
                 </div>
 
+                {/* Save Message */}
+                {saveMessage && (
+                    <div className={`mb-6 p-4 rounded-lg border ${
+                        saveMessage.type === 'success' 
+                            ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' 
+                            : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
+                    }`}>
+                        {saveMessage.text}
+                    </div>
+                )}
+
                 {/* Add Card Form - Always Visible */}
-                <Card className='mb-6 bg-gray-800 border-gray-700'>
+                <Card className='mb-6'>
                     <CardHeader>
-                        <CardTitle className='text-white'>
+                        <CardTitle>
                             Add New Card
                         </CardTitle>
                     </CardHeader>
                     <CardContent className='space-y-4'>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
-                                Arabic Text <span className='text-red-400'>*</span>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
+                                Arabic Text <span className='text-destructive'>*</span>
                             </label>
                             <input
                                 type='text'
@@ -495,17 +507,17 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter Arabic text'
-                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
-                                    errors.front ? 'border-red-500' : 'border-gray-600'
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                    errors.front ? 'border-destructive' : 'border-border'
                                 }`}
                             />
                             {errors.front && (
-                                <p className='text-red-400 text-sm mt-1'>{errors.front}</p>
+                                <p className='text-destructive text-sm mt-1'>{errors.front}</p>
                             )}
                         </div>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
-                                Bangla Translation <span className='text-red-400'>*</span>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
+                                Bangla Translation <span className='text-destructive'>*</span>
                             </label>
                             <input
                                 type='text'
@@ -520,17 +532,17 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter Bangla translation'
-                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
-                                    errors.bangla ? 'border-red-500' : 'border-gray-600'
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                    errors.bangla ? 'border-destructive' : 'border-border'
                                 }`}
                             />
                             {errors.bangla && (
-                                <p className='text-red-400 text-sm mt-1'>{errors.bangla}</p>
+                                <p className='text-destructive text-sm mt-1'>{errors.bangla}</p>
                             )}
                         </div>
                         <div>
-                            <label className='text-sm text-gray-300 mb-2 block'>
-                                English Translation <span className='text-red-400'>*</span>
+                            <label className='text-sm text-muted-foreground mb-2 block'>
+                                English Translation <span className='text-destructive'>*</span>
                             </label>
                             <input
                                 type='text'
@@ -545,18 +557,18 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter English translation'
-                                className={`w-full p-3 bg-gray-700 border rounded-lg text-white placeholder-gray-400 ${
-                                    errors.english ? 'border-red-500' : 'border-gray-600'
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                    errors.english ? 'border-destructive' : 'border-border'
                                 }`}
                             />
                             {errors.english && (
-                                <p className='text-red-400 text-sm mt-1'>{errors.english}</p>
+                                <p className='text-destructive text-sm mt-1'>{errors.english}</p>
                             )}
                         </div>
                         <div className='flex gap-2'>
                             <Button
                                 onClick={handleAddCard}
-                                className='bg-green-600 hover:bg-green-700'>
+                                variant='secondary'>
                                 <Plus className='w-4 h-4 mr-2' />
                                 Add Card
                             </Button>
@@ -566,22 +578,22 @@ export default function EditDeck() {
 
                 {/* CSV Upload Form */}
                 {isUploadingCSV && (
-                    <Card className='mb-6 bg-gray-800 border-gray-700'>
+                    <Card className='mb-6'>
                         <CardHeader>
-                            <CardTitle className='text-white'>
+                            <CardTitle>
                                 Upload CSV File
                             </CardTitle>
                         </CardHeader>
                         <CardContent className='space-y-4'>
-                            <div className='text-sm text-gray-300'>
+                            <div className='text-sm text-muted-foreground'>
                                 <p className='mb-2'>
                                     Upload a CSV file with the following format:
                                 </p>
-                                <div className='bg-gray-700 p-3 rounded-lg font-mono text-xs'>
-                                    <div className='text-gray-400'>
+                                <div className='bg-muted p-3 rounded-lg font-mono text-xs'>
+                                    <div className='text-muted-foreground'>
                                         Arabic,Bangla,English
                                     </div>
-                                    <div className='text-white'>
+                                    <div className='text-foreground'>
                                         كِتَابٌ,কিতাব,Book
                                         <br />
                                         قَلَمٌ,কলম,Pen
@@ -589,7 +601,7 @@ export default function EditDeck() {
                                         بَيْتٌ,ঘর,House
                                     </div>
                                 </div>
-                                <p className='mt-2 text-xs text-gray-400'>
+                                <p className='mt-2 text-xs text-muted-foreground'>
                                     • Header row is optional
                                     <br />
                                     • Each row should have: Arabic, Bangla, English
@@ -599,19 +611,19 @@ export default function EditDeck() {
                             </div>
                             
                             <div>
-                                <label className='text-sm text-gray-300 mb-2 block'>
+                                <label className='text-sm text-muted-foreground mb-2 block'>
                                     Select CSV File
                                 </label>
                                 <input
                                     type='file'
                                     accept='.csv'
                                     onChange={handleFileUpload}
-                                    className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700'
+                                    className='w-full p-3 bg-input border border-border rounded-lg text-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90'
                                 />
                             </div>
                             
                             {csvFile && (
-                                <div className='text-sm text-green-400'>
+                                <div className='text-sm text-green-600'>
                                     Selected file: {csvFile.name} ({Math.round(csvFile.size / 1024)} KB)
                                 </div>
                             )}
@@ -620,7 +632,7 @@ export default function EditDeck() {
                                 <Button
                                     onClick={handleCSVUpload}
                                     disabled={!csvFile}
-                                    className='bg-purple-600 hover:bg-purple-700 disabled:opacity-50'>
+                                    variant='secondary'>
                                     <Upload className='w-4 h-4 mr-2' />
                                     Import Cards
                                 </Button>
@@ -629,8 +641,7 @@ export default function EditDeck() {
                                         setIsUploadingCSV(false);
                                         setCsvFile(null);
                                     }}
-                                    variant='outline'
-                                    className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                    variant='outline'>
                                     Cancel
                                 </Button>
                             </div>
@@ -641,25 +652,25 @@ export default function EditDeck() {
                 {/* Search Cards */}
                 <div className='mb-6'>
                     <div className='relative'>
-                        <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5' />
+                        <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5' />
                         <input
                             type='text'
                             placeholder='Search cards by Arabic, Bangla, or English...'
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className='w-full pl-10 pr-12 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                            className='w-full pl-10 pr-12 py-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent'
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors'
+                                className='absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors'
                             >
                                 <X className='w-5 h-5' />
                             </button>
                         )}
                     </div>
                     {searchQuery && (
-                        <p className='text-sm text-gray-400 mt-2'>
+                        <p className='text-sm text-muted-foreground mt-2'>
                             Showing {filteredCards.length} of {deck.cards.length} cards
                         </p>
                     )}
@@ -669,13 +680,12 @@ export default function EditDeck() {
                 <div className='space-y-4'>
                     {filteredCards.map((card) => (
                         <Card
-                            key={card.id}
-                            className='bg-gray-800 border-gray-700'>
+                            key={card.id}>
                             <CardContent className='p-4'>
                                 {editingCard && editingCard.id === card.id ? (
                                     <div className='space-y-4'>
                                         <div>
-                                            <label className='text-sm text-gray-300 mb-2 block'>
+                                            <label className='text-sm text-muted-foreground mb-2 block'>
                                                 Arabic Text
                                             </label>
                                             <input
@@ -687,11 +697,11 @@ export default function EditDeck() {
                                                         front: e.target.value
                                                     })
                                                 }
-                                                className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
+                                                className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground'
                                             />
                                         </div>
                                         <div>
-                                            <label className='text-sm text-gray-300 mb-2 block'>
+                                            <label className='text-sm text-muted-foreground mb-2 block'>
                                                 Bangla Translation
                                             </label>
                                             <input
@@ -707,11 +717,11 @@ export default function EditDeck() {
                                                         }
                                                     })
                                                 }
-                                                className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
+                                                className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground'
                                             />
                                         </div>
                                         <div>
-                                            <label className='text-sm text-gray-300 mb-2 block'>
+                                            <label className='text-sm text-muted-foreground mb-2 block'>
                                                 English Translation
                                             </label>
                                             <input
@@ -727,21 +737,20 @@ export default function EditDeck() {
                                                         }
                                                     })
                                                 }
-                                                className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
+                                                className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground'
                                             />
                                         </div>
                                         <div className='flex gap-2'>
                                             <Button
                                                 onClick={handleSaveCardEdit}
-                                                className='bg-green-600 hover:bg-green-700'>
+                                                variant='secondary'>
                                                 Save
                                             </Button>
                                             <Button
                                                 onClick={() =>
                                                     setEditingCard(null)
                                                 }
-                                                variant='outline'
-                                                className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                                variant='outline'>
                                                 Cancel
                                             </Button>
                                         </div>
@@ -749,10 +758,10 @@ export default function EditDeck() {
                                 ) : (
                                     <div className='flex items-center justify-between'>
                                         <div className='flex-1'>
-                                            <div className='text-white font-medium mb-1 arabic-text-list'>
+                                            <div className='text-foreground font-medium mb-1 arabic-text-list'>
                                                 {highlightSearchTerm(card.front, searchQuery)}
                                             </div>
-                                            <div className='text-gray-300 text-sm'>
+                                            <div className='text-muted-foreground text-sm'>
                                                 {highlightSearchTerm(card.back.bangla, searchQuery)} •{' '}
                                                 {highlightSearchTerm(card.back.english, searchQuery)}
                                             </div>
@@ -763,8 +772,7 @@ export default function EditDeck() {
                                                     handleEditCard(card)
                                                 }
                                                 size='sm'
-                                                variant='outline'
-                                                className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                                variant='outline'>
                                                 <Edit className='w-4 h-4' />
                                             </Button>
                                             <Button
@@ -785,7 +793,7 @@ export default function EditDeck() {
 
                 {deck.cards.length === 0 && (
                     <div className='text-center py-12'>
-                        <p className='text-gray-400'>
+                        <p className='text-muted-foreground'>
                             No cards in this deck. Add your first card!
                         </p>
                     </div>
@@ -793,10 +801,10 @@ export default function EditDeck() {
 
                 {deck.cards.length > 0 && filteredCards.length === 0 && searchQuery && (
                     <div className='text-center py-12'>
-                        <p className='text-gray-400'>
+                        <p className='text-muted-foreground'>
                             No cards found matching "{searchQuery}"
                         </p>
-                        <p className='text-sm text-gray-500 mt-2'>
+                        <p className='text-sm text-muted-foreground mt-2'>
                             Try searching for Arabic, Bangla, or English text
                         </p>
                     </div>

@@ -1,6 +1,11 @@
 import { supabase, type DbDeck, type DbCard } from './supabase';
 import { initializeFSRSCard, getCardStats } from './fsrs';
 import type { Deck, Card, DeckDisplayInfo } from '@/types';
+import type { Database } from '@/types/database';
+
+type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
+type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert'];
+type UserProfileUpdate = Database['public']['Tables']['user_profiles']['Update'];
 
 // Helper function to check if a string is a valid UUID
 function isValidUUID(str: string): boolean {
@@ -441,4 +446,164 @@ export function getTimeIndicatorClass(date: Date): string {
   if (minutes < 60) return 'text-yellow-400';
   if (minutes < 24 * 60) return 'text-blue-400';
   return 'text-gray-400';
+}
+
+// User Management Functions
+
+// Get user profile by user ID
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  try {
+    console.log('Fetching user profile for userId:', userId);
+    
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Supabase error fetching user profile:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      return null;
+    }
+
+    console.log('Successfully fetched user profile:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getUserProfile:', error);
+    return null;
+  }
+}
+
+// Get user profile by email
+export async function getUserProfileByEmail(email: string): Promise<UserProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user profile by email:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in getUserProfileByEmail:', error);
+    return null;
+  }
+}
+
+// Get all user profiles (admin/superuser only)
+export async function getAllUserProfiles(): Promise<UserProfile[]> {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all user profiles:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getAllUserProfiles:', error);
+    return [];
+  }
+}
+
+// Create or update user profile
+export async function upsertUserProfile(profile: UserProfileInsert): Promise<UserProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .upsert(profile)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error upserting user profile:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in upsertUserProfile:', error);
+    return null;
+  }
+}
+
+// Update user role (superuser only)
+export async function updateUserRole(userId: string, role: 'user' | 'admin' | 'superuser'): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating user role:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in updateUserRole:', error);
+    return false;
+  }
+}
+
+// Check if user has admin privileges
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  try {
+    const profile = await getUserProfile(userId);
+    return profile?.role === 'admin' || profile?.role === 'superuser';
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+}
+
+// Check if user is superuser
+export async function isUserSuperuser(userId: string): Promise<boolean> {
+  try {
+    const profile = await getUserProfile(userId);
+    return profile?.role === 'superuser';
+  } catch (error) {
+    console.error('Error checking superuser status:', error);
+    return false;
+  }
+}
+
+// Initialize user profile on first login
+export async function initializeUserProfile(userId: string, email: string): Promise<UserProfile | null> {
+  try {
+    // Check if profile already exists
+    const existingProfile = await getUserProfile(userId);
+    if (existingProfile) {
+      return existingProfile;
+    }
+
+    // Determine role based on email
+    const role = email === 'mohiuddin.007@gmail.com' ? 'superuser' : 'user';
+
+    // Create new profile
+    return await upsertUserProfile({
+      user_id: userId,
+      email,
+      role,
+    });
+  } catch (error) {
+    console.error('Error initializing user profile:', error);
+    return null;
+  }
 }
