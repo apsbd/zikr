@@ -99,7 +99,7 @@ export default function PWAInstaller() {
         localStorage.setItem('pwa-install-dismissed', 'true');
     };
 
-    // Don't show if installed or dismissed
+    // Don't show if installed, dismissed, or on landing page
     if (isInstalled || isDismissed || !showInstallButton) return null;
 
     return (
