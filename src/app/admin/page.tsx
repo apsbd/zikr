@@ -95,6 +95,7 @@ export default function AdminPanel() {
             title: 'New Deck',
             description: 'A new deck for studying',
             author: 'Admin',
+            dailyNewLimit: 20,
             cards: [],
             stats: { total: 0, new: 0, learning: 0, review: 0 },
             createdAt: new Date(),

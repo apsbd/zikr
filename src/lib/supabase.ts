@@ -17,6 +17,7 @@ export interface DbDeck {
   title: string;
   description: string;
   author: string;
+  daily_new_limit: number;
   created_at: string;
   updated_at: string;
 }
