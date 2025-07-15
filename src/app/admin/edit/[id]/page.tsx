@@ -507,7 +507,7 @@ export default function EditDeck() {
                                     }
                                 }}
                                 placeholder='Enter Arabic text'
-                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground arabic-text ${
                                     errors.front ? 'border-destructive' : 'border-border'
                                 }`}
                             />
@@ -758,7 +758,7 @@ export default function EditDeck() {
                                 ) : (
                                     <div className='flex items-center justify-between'>
                                         <div className='flex-1'>
-                                            <div className='text-foreground font-medium mb-1 arabic-text-list'>
+                                            <div className='text-foreground font-medium mb-1 arabic-text'>
                                                 {highlightSearchTerm(card.front, searchQuery)}
                                             </div>
                                             <div className='text-muted-foreground text-sm'>

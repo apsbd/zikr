@@ -84,3 +84,37 @@ body {
 html {
   color-scheme: light dark;
 }
+
+/* Arabic text styling for proper diacritics display */
+.arabic-text {
+  font-family: 'Noto Sans Arabic', 'Amiri', 'Geist', Arial, sans-serif;
+  direction: rtl;
+  line-height: 1.8;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.arabic-text-large {
+  font-family: 'Noto Sans Arabic', 'Amiri', 'Geist', Arial, sans-serif;
+  direction: rtl;
+  line-height: 1.9;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.arabic-text-list {
+  font-family: 'Noto Sans Arabic', 'Amiri', 'Geist', Arial, sans-serif;
+  direction: rtl;
+  line-height: 1.7;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}

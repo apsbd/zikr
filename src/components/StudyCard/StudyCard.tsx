@@ -114,11 +114,9 @@ export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
                     {!isFlipped ? (
                         <div className='space-y-6 text-center'>
                             <div 
-                                className='font-bold text-center transition-all duration-300'
+                                className='font-bold text-center transition-all duration-300 arabic-text-large'
                                 style={{ 
-                                    fontSize: `${textSize * 2.25}rem`,
-                                    fontFamily: 'Arial, Helvetica, sans-serif',
-                                    direction: 'rtl'
+                                    fontSize: `${textSize * 2.25}rem`
                                 }}>
                                 {showFrontContent ? card.front : ''}
                             </div>
