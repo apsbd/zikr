@@ -3,18 +3,38 @@
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function UserProfile() {
     const { user, signOut } = useAuth();
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleSignOut = async () => {
         try {
+            setIsDropdownOpen(false); // Close dropdown on sign out
             await signOut();
         } catch (error) {
             console.error('Error signing out:', error);
         }
     };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () =>
+            document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     if (!user) return null;
 
@@ -36,6 +56,9 @@ export default function UserProfile() {
 
                     {/* Right side - User info and controls */}
                     <div className='flex items-center gap-4'>
+                        <ThemeToggle />
+
+                        {/* Desktop user info */}
                         <div className='hidden sm:flex items-center gap-2 text-sm'>
                             <User className='w-4 h-4 text-muted-foreground' />
                             <span className='text-muted-foreground'>
@@ -43,19 +66,57 @@ export default function UserProfile() {
                             </span>
                         </div>
 
-                        <div className='flex items-center gap-2'>
-                            <ThemeToggle />
-                            <Button
-                                variant='ghost'
-                                size='sm'
-                                onClick={handleSignOut}
-                                className='flex items-center gap-2'>
-                                <LogOut className='w-4 h-4' />
-                                <span className='hidden sm:inline'>
-                                    Sign Out
-                                </span>
-                            </Button>
+                        {/* Mobile user dropdown */}
+                        <div
+                            className='flex sm:hidden relative'
+                            ref={dropdownRef}>
+                            <button
+                                onClick={() =>
+                                    setIsDropdownOpen(!isDropdownOpen)
+                                }
+                                className='flex items-center gap-1 p-2 rounded-md hover:bg-accent transition-colors'>
+                                <User className='w-4 h-4 text-muted-foreground' />
+                                <ChevronDown
+                                    className={`w-3 h-3 text-muted-foreground transition-transform ${
+                                        isDropdownOpen ? 'rotate-180' : ''
+                                    }`}
+                                />
+                            </button>
+
+                            {/* Dropdown content */}
+                            {isDropdownOpen && (
+                                <div className='absolute right-0 top-full mt-2 w-64 bg-background border border-border rounded-lg shadow-lg p-3 z-50'>
+                                    <div className='text-sm mb-3'>
+                                        <p className='text-muted-foreground mb-1'>
+                                            Signed in as:
+                                        </p>
+                                        <p className='font-medium text-foreground break-all'>
+                                            {user.email}
+                                        </p>
+                                    </div>
+
+                                    {/* Sign out button in dropdown */}
+                                    <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        onClick={handleSignOut}
+                                        className='w-full flex items-center gap-2 justify-start text-destructive hover:text-destructive hover:bg-destructive/10'>
+                                        <LogOut className='w-4 h-4' />
+                                        Sign Out
+                                    </Button>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Desktop sign out button */}
+                        <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={handleSignOut}
+                            className='hidden sm:flex items-center gap-2'>
+                            <LogOut className='w-4 h-4' />
+                            Sign Out
+                        </Button>
                     </div>
                 </div>
             </div>
