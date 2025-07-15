@@ -69,7 +69,7 @@ export default function RootLayout({
                     content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
                 />
                 <meta name='color-scheme' content='dark' />
-                <meta name='theme-color' content='#1c1c1c' />
+                <meta name='theme-color' content='#09090b' />
 
                 {/* PWA Meta Tags */}
                 <meta name='mobile-web-app-capable' content='yes' />
@@ -79,7 +79,7 @@ export default function RootLayout({
                     content='black-translucent'
                 />
                 <meta name='apple-mobile-web-app-title' content='Zikr' />
-                <meta name='msapplication-TileColor' content='#1c1c1c' />
+                <meta name='msapplication-TileColor' content='#09090b' />
                 <meta name='msapplication-tap-highlight' content='no' />
 
                 {/* Manifest */}
