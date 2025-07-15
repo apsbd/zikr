@@ -93,11 +93,11 @@ export default function LandingPage() {
             <div className='min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex flex-col p-4 relative overflow-hidden'>
                 {/* Background decoration */}
                 <div className='absolute inset-0 bg-grid-pattern opacity-[0.02] pointer-events-none' />
-                <div className='absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl' />
-                <div className='absolute bottom-20 right-10 w-96 h-96 bg-primary/3 rounded-full blur-3xl' />
+                <div className='absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none' />
+                <div className='absolute bottom-20 right-10 w-96 h-96 bg-primary/3 rounded-full blur-3xl pointer-events-none' />
 
                 {/* Top Navigation */}
-                <div className='relative z-10 w-full max-w-6xl mx-auto flex justify-between items-center py-6'>
+                <div className='relative z-50 w-full max-w-6xl mx-auto flex justify-between items-center py-6'>
                     <div className='flex items-center gap-2'>
                         <div className='w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center'>
                             <svg
@@ -120,7 +120,7 @@ export default function LandingPage() {
                         onClick={handleUseWebVersion}
                         variant='outline'
                         size='sm'
-                        className='bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80'>
+                        className='bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80 relative z-50 min-h-[44px] min-w-[44px] touch-manipulation select-none'>
                         <svg
                             className='w-4 h-4 mr-2'
                             fill='none'
