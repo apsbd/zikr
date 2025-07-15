@@ -27,7 +27,6 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
           state: progress.state,
           difficulty: progress.difficulty,
           stability: progress.stability,
-          retrievability: progress.retrievability,
           due: new Date(progress.due),
           elapsed_days: progress.elapsed_days,
           scheduled_days: progress.scheduled_days,
@@ -294,7 +293,7 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
         state: fsrsData.state,
         difficulty: fsrsData.difficulty,
         stability: fsrsData.stability,
-        retrievability: fsrsData.retrievability,
+        retrievability: 0, // Default value since this field isn't used in current FSRS implementation
         due: fsrsData.due.toISOString(),
         elapsed_days: fsrsData.elapsed_days,
         scheduled_days: fsrsData.scheduled_days,

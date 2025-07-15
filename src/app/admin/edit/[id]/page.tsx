@@ -47,7 +47,9 @@ export default function EditDeck() {
     useEffect(() => {
         // Check authentication first
         const adminAuth = localStorage.getItem('zikr-admin-auth');
-        if (adminAuth !== 'authenticated') {
+        const isUserAdmin = user?.email === 'mohiuddin.007@gmail.com';
+        
+        if (adminAuth !== 'authenticated' && !isUserAdmin) {
             router.push('/admin');
             return;
         }

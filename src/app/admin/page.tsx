@@ -27,12 +27,12 @@ export default function AdminPanel() {
     };
 
     useEffect(() => {
-        // Check if user is already logged in
+        // Check if user is already logged in or is admin user
         const adminAuth = localStorage.getItem('zikr-admin-auth');
-        if (adminAuth === 'authenticated') {
+        if (adminAuth === 'authenticated' || isUserAdmin()) {
             setIsAuthenticated(true);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -48,6 +48,11 @@ export default function AdminPanel() {
         } else {
             alert('Invalid password');
         }
+    };
+
+    // Check if current user is admin
+    const isUserAdmin = () => {
+        return user?.email === 'mohiuddin.007@gmail.com';
     };
 
     const handleLogout = () => {
@@ -88,6 +93,31 @@ export default function AdminPanel() {
     };
 
     if (!isAuthenticated) {
+        // If user is admin, show auto-login message
+        if (isUserAdmin()) {
+            return (
+                <div className='min-h-screen bg-background flex items-center justify-center p-4'>
+                    <Card className='w-full max-w-md'>
+                        <CardHeader>
+                            <CardTitle className='text-center'>
+                                Admin Access
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className='space-y-4 text-center'>
+                            <p className='text-muted-foreground'>
+                                Welcome, Admin! You have automatic access to the admin panel.
+                            </p>
+                            <Button
+                                onClick={() => setIsAuthenticated(true)}
+                                className='w-full'>
+                                Access Admin Panel
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            );
+        }
+
         return (
             <div className='min-h-screen bg-background flex items-center justify-center p-4'>
                 <Card className='w-full max-w-md'>
