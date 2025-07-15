@@ -9,27 +9,55 @@ function isValidUUID(str: string): boolean {
 }
 
 // Convert database deck to app deck format
-function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[]): Deck {
-  const cards: Card[] = dbCards.map(dbCard => {
-    // Get user progress from localStorage
-    const progressKey = `card-progress-${dbCard.id}`;
-    const savedProgress = localStorage.getItem(progressKey);
-    
+async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: string): Promise<Deck> {
+  const cards: Card[] = await Promise.all(dbCards.map(async dbCard => {
     let fsrsData;
-    if (savedProgress) {
-      try {
-        const progress = JSON.parse(savedProgress);
+    
+    if (userId) {
+      // Get user progress from database
+      const { data: progress } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('card_id', dbCard.id)
+        .single();
+      
+      if (progress) {
         fsrsData = {
-          ...progress,
+          state: progress.state,
+          difficulty: progress.difficulty,
+          stability: progress.stability,
+          retrievability: progress.retrievability,
           due: new Date(progress.due),
+          elapsed_days: progress.elapsed_days,
+          scheduled_days: progress.scheduled_days,
+          reps: progress.reps,
+          lapses: progress.lapses,
           last_review: progress.last_review ? new Date(progress.last_review) : undefined,
         };
-      } catch (error) {
-        console.error('Error parsing card progress:', error);
+      } else {
         fsrsData = initializeFSRSCard();
       }
     } else {
-      fsrsData = initializeFSRSCard();
+      // Fallback to localStorage for non-authenticated users
+      const progressKey = `card-progress-${dbCard.id}`;
+      const savedProgress = localStorage.getItem(progressKey);
+      
+      if (savedProgress) {
+        try {
+          const progress = JSON.parse(savedProgress);
+          fsrsData = {
+            ...progress,
+            due: new Date(progress.due),
+            last_review: progress.last_review ? new Date(progress.last_review) : undefined,
+          };
+        } catch (error) {
+          console.error('Error parsing card progress:', error);
+          fsrsData = initializeFSRSCard();
+        }
+      } else {
+        fsrsData = initializeFSRSCard();
+      }
     }
 
     return {
@@ -41,7 +69,7 @@ function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[]): Deck {
       },
       fsrsData,
     };
-  });
+  }));
 
   return {
     id: dbDeck.id,
@@ -56,7 +84,7 @@ function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[]): Deck {
 }
 
 // Get all decks from Supabase
-export async function getDecks(): Promise<Deck[]> {
+export async function getDecks(userId?: string): Promise<Deck[]> {
   try {
     // Fetch decks
     const { data: decks, error: decksError } = await supabase
@@ -81,10 +109,10 @@ export async function getDecks(): Promise<Deck[]> {
     }
 
     // Group cards by deck_id and convert to app format
-    const decksWithCards: Deck[] = decks.map(deck => {
+    const decksWithCards: Deck[] = await Promise.all(decks.map(async deck => {
       const deckCards = cards.filter(card => card.deck_id === deck.id);
-      return dbDeckToAppDeck(deck, deckCards);
-    });
+      return await dbDeckToAppDeck(deck, deckCards, userId);
+    }));
 
     return decksWithCards;
   } catch (error) {
@@ -94,7 +122,7 @@ export async function getDecks(): Promise<Deck[]> {
 }
 
 // Get a specific deck by ID
-export async function getDeckById(id: string): Promise<Deck | undefined> {
+export async function getDeckById(id: string, userId?: string): Promise<Deck | undefined> {
   try {
     // Fetch deck
     const { data: deck, error: deckError } = await supabase
@@ -120,7 +148,7 @@ export async function getDeckById(id: string): Promise<Deck | undefined> {
       return undefined;
     }
 
-    return dbDeckToAppDeck(deck, cards || []);
+    return await dbDeckToAppDeck(deck, cards || [], userId);
   } catch (error) {
     console.error('Error in getDeckById:', error);
     return undefined;
@@ -255,11 +283,59 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
   }
 }
 
-// Save user progress for a card to localStorage
-export function saveCardProgress(cardId: string, fsrsData: Card['fsrsData']): void {
+// Save user progress for a card to database or localStorage
+export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'], userId?: string): Promise<void> {
   try {
-    const progressKey = `card-progress-${cardId}`;
-    localStorage.setItem(progressKey, JSON.stringify(fsrsData));
+    if (userId) {
+      // Save to database for authenticated users
+      const progressData = {
+        user_id: userId,
+        card_id: cardId,
+        state: fsrsData.state,
+        difficulty: fsrsData.difficulty,
+        stability: fsrsData.stability,
+        retrievability: fsrsData.retrievability,
+        due: fsrsData.due.toISOString(),
+        elapsed_days: fsrsData.elapsed_days,
+        scheduled_days: fsrsData.scheduled_days,
+        reps: fsrsData.reps,
+        lapses: fsrsData.lapses,
+        last_review: fsrsData.last_review?.toISOString() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Try to update existing progress first
+      const { data: existing } = await supabase
+        .from('user_progress')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('card_id', cardId)
+        .single();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('user_progress')
+          .update(progressData)
+          .eq('user_id', userId)
+          .eq('card_id', cardId);
+        
+        if (error) {
+          console.error('Error updating user progress:', error);
+        }
+      } else {
+        const { error } = await supabase
+          .from('user_progress')
+          .insert({ ...progressData, created_at: new Date().toISOString() });
+        
+        if (error) {
+          console.error('Error inserting user progress:', error);
+        }
+      }
+    } else {
+      // Fallback to localStorage for non-authenticated users
+      const progressKey = `card-progress-${cardId}`;
+      localStorage.setItem(progressKey, JSON.stringify(fsrsData));
+    }
   } catch (error) {
     console.error('Error saving card progress:', error);
   }

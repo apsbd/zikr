@@ -7,15 +7,19 @@ import { Deck } from '@/types';
 import { getDecks, saveDeck, deleteDeck } from '@/lib/database';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
 import { BookOpen, Plus, Edit, Trash2, LogOut } from 'lucide-react';
+import ProtectedRoute from '@/components/Auth/ProtectedRoute';
+import UserProfile from '@/components/Auth/UserProfile';
+import { useAuth } from '@/contexts/auth';
 
 export default function AdminPanel() {
     const [decks, setDecks] = useState<Deck[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
+    const { user } = useAuth();
 
     const loadDecks = async () => {
         try {
-            const savedDecks = await getDecks();
+            const savedDecks = await getDecks(user?.id);
             setDecks(savedDecks);
         } catch (error) {
             console.error('Error loading decks:', error);
@@ -113,23 +117,28 @@ export default function AdminPanel() {
     }
 
     return (
-        <div className='min-h-screen bg-gray-900 p-4'>
-            <div className='max-w-6xl mx-auto'>
-                <header className='mb-8 flex justify-between items-start'>
-                    <div>
-                        <h1 className='text-3xl font-bold text-white mb-2'>
-                            Admin Panel
-                        </h1>
-                        <p className='text-gray-300'>Manage decks and cards</p>
+        <ProtectedRoute>
+            <div className='min-h-screen bg-gray-900 p-4'>
+                <div className='max-w-6xl mx-auto'>
+                    <div className="mb-6">
+                        <UserProfile />
                     </div>
-                    <Button
-                        onClick={handleLogout}
-                        variant='outline'
-                        className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
-                        <LogOut className='w-4 h-4 mr-2' />
-                        Logout
-                    </Button>
-                </header>
+                    
+                    <header className='mb-8 flex justify-between items-start'>
+                        <div>
+                            <h1 className='text-3xl font-bold text-white mb-2'>
+                                Admin Panel
+                            </h1>
+                            <p className='text-gray-300'>Manage decks and cards</p>
+                        </div>
+                        <Button
+                            onClick={handleLogout}
+                            variant='outline'
+                            className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
+                            <LogOut className='w-4 h-4 mr-2' />
+                            Logout
+                        </Button>
+                    </header>
 
                 <div className='mb-6'>
                     <Button
@@ -197,7 +206,8 @@ export default function AdminPanel() {
                         </p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
+        </ProtectedRoute>
     );
 }

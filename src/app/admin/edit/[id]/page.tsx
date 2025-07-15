@@ -8,11 +8,15 @@ import { Deck, Card as CardType } from '@/types';
 import { getDeckById, saveDeck } from '@/lib/database';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
 import { ArrowLeft, Plus, Edit, Trash2, Save, Upload, Search, X, LogOut } from 'lucide-react';
+import ProtectedRoute from '@/components/Auth/ProtectedRoute';
+import UserProfile from '@/components/Auth/UserProfile';
+import { useAuth } from '@/contexts/auth';
 
 export default function EditDeck() {
     const router = useRouter();
     const params = useParams();
     const deckId = params.id as string;
+    const { user } = useAuth();
 
     const [deck, setDeck] = useState<Deck | null>(null);
     const [editingCard, setEditingCard] = useState<CardType | null>(null);
@@ -51,7 +55,7 @@ export default function EditDeck() {
 
         const loadDeck = async () => {
             try {
-                const savedDeck = await getDeckById(deckId);
+                const savedDeck = await getDeckById(deckId, user?.id);
                 if (savedDeck) {
                     setDeck(savedDeck);
                     setDeckMeta({
@@ -327,32 +331,37 @@ export default function EditDeck() {
     }
 
     return (
-        <div className='min-h-screen bg-gray-900 p-4'>
-            <div className='max-w-4xl mx-auto'>
-                <header className='mb-8 flex items-center justify-between'>
-                    <div className='flex items-center gap-4'>
-                        <Button
-                            onClick={() => router.push('/admin')}
-                            variant='outline'
-                            className='border-gray-600 text-gray-300 hover:bg-gray-800'>
-                            <ArrowLeft className='w-4 h-4 mr-2' />
-                            Back to Admin
-                        </Button>
-                        <div>
-                            <h1 className='text-3xl font-bold text-white'>
-                                Edit Deck
-                            </h1>
-                            <p className='text-gray-300'>Manage deck details and cards</p>
-                        </div>
+        <ProtectedRoute>
+            <div className='min-h-screen bg-gray-900 p-4'>
+                <div className='max-w-4xl mx-auto'>
+                    <div className="mb-6">
+                        <UserProfile />
                     </div>
-                    <Button
-                        onClick={handleLogout}
-                        variant='outline'
-                        className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
-                        <LogOut className='w-4 h-4 mr-2' />
-                        Logout
-                    </Button>
-                </header>
+                    
+                    <header className='mb-8 flex items-center justify-between'>
+                        <div className='flex items-center gap-4'>
+                            <Button
+                                onClick={() => router.push('/admin')}
+                                variant='outline'
+                                className='border-gray-600 text-gray-300 hover:bg-gray-800'>
+                                <ArrowLeft className='w-4 h-4 mr-2' />
+                                Back to Admin
+                            </Button>
+                            <div>
+                                <h1 className='text-3xl font-bold text-white'>
+                                    Edit Deck
+                                </h1>
+                                <p className='text-gray-300'>Manage deck details and cards</p>
+                            </div>
+                        </div>
+                        <Button
+                            onClick={handleLogout}
+                            variant='outline'
+                            className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
+                            <LogOut className='w-4 h-4 mr-2' />
+                            Logout
+                        </Button>
+                    </header>
 
                 {/* Deck Metadata Section */}
                 <Card className='mb-6 bg-gray-800 border-gray-700'>
@@ -778,7 +787,8 @@ export default function EditDeck() {
                         </p>
                     </div>
                 )}
+                </div>
             </div>
-        </div>
+        </ProtectedRoute>
     );
 }

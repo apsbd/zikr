@@ -11,6 +11,8 @@ import { Deck, Card as CardType, Rating, StudySession } from '@/types';
 import { getDeckById, saveCardProgress } from '@/lib/database';
 import { reviewCard, getCardsForStudy, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
+import ProtectedRoute from '@/components/Auth/ProtectedRoute';
+import { useAuth } from '@/contexts/auth';
 
 interface StudyPageProps {
   params: Promise<{
@@ -23,12 +25,13 @@ export default function StudyPage({ params }: StudyPageProps) {
   const [session, setSession] = useState<StudySession | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadDeck = async () => {
       try {
         const resolvedParams = await params;
-        const foundDeck = await getDeckById(resolvedParams.deckId);
+        const foundDeck = await getDeckById(resolvedParams.deckId, user?.id);
         if (!foundDeck) {
           router.push('/');
           return;
@@ -58,15 +61,15 @@ export default function StudyPage({ params }: StudyPageProps) {
     loadDeck();
   }, [params, router]);
 
-  const handleRating = (rating: Rating) => {
+  const handleRating = async (rating: Rating) => {
     if (!session || !deck) return;
 
     try {
       const currentCard = session.cards[session.currentIndex];
       const updatedCard = reviewCard(currentCard, rating);
       
-      // Save progress to localStorage
-      saveCardProgress(updatedCard.id, updatedCard.fsrsData);
+      // Save progress to database
+      await saveCardProgress(updatedCard.id, updatedCard.fsrsData, user?.id);
       
       // Update deck state with new card progress
       const updatedCards = deck.cards.map(card => 
@@ -101,7 +104,7 @@ export default function StudyPage({ params }: StudyPageProps) {
     
     try {
       // Reload deck to get fresh data with updated progress
-      const freshDeck = await getDeckById(deck.id);
+      const freshDeck = await getDeckById(deck.id, user?.id);
       if (!freshDeck) return;
       
       setDeck(freshDeck);
@@ -207,28 +210,30 @@ export default function StudyPage({ params }: StudyPageProps) {
   const progressPercentage = ((session.currentIndex + 1) / session.cards.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-4">
-          <BackButton href="/" />
-        </div>
-        
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-semibold text-white">{deck.title}</h2>
-            <span className="text-sm text-gray-400">
-              {session.currentIndex + 1} of {session.cards.length}
-            </span>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-900 p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-4">
+            <BackButton href="/" />
           </div>
-          <Progress value={progressPercentage} className="h-2" />
-        </div>
+          
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold text-white">{deck.title}</h2>
+              <span className="text-sm text-gray-400">
+                {session.currentIndex + 1} of {session.cards.length}
+              </span>
+            </div>
+            <Progress value={progressPercentage} className="h-2" />
+          </div>
 
-        <StudyCard
-          card={currentCard}
-          onRate={handleRating}
-          isLast={session.currentIndex === session.cards.length - 1}
-        />
+          <StudyCard
+            card={currentCard}
+            onRate={handleRating}
+            isLast={session.currentIndex === session.cards.length - 1}
+          />
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }
