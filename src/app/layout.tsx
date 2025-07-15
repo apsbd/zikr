@@ -83,7 +83,7 @@ export default function RootLayout({
                 <meta name='apple-mobile-web-app-title' content='Zikr' />
                 <meta name='msapplication-TileColor' content='#09090b' />
                 <meta name='msapplication-tap-highlight' content='no' />
-                
+
                 {/* Prevent pull-to-refresh */}
                 <meta name='overscroll-behavior' content='none' />
                 <meta name='format-detection' content='telephone=no' />
@@ -141,7 +141,7 @@ export default function RootLayout({
                             <ClientWrapper>
                                 <NativeAppEnhancements />
                                 {children}
-                                <PWAInstaller />
+                                {/* <PWAInstaller /> */}
                             </ClientWrapper>
                         </AuthProvider>
                     </QueryProvider>

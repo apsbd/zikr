@@ -19,6 +19,7 @@ import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import UserManagement from '@/components/Admin/UserManagement';
 import { useAuth } from '@/contexts/auth';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function AdminPanel() {
     const [decks, setDecks] = useState<Deck[]>([]);
@@ -153,115 +154,126 @@ export default function AdminPanel() {
         <ProtectedRoute>
             <div className='min-h-screen bg-background'>
                 <UserProfile />
+                <ScrollArea
+                    className='h-screen w-full'
+                    style={{ height: 'calc(100vh - 80px )' }}>
+                    <div className='w-full sm:max-w-6xl sm:mx-auto p-2 sm:p-4'>
+                        <div className='mb-8'>
+                            <h1 className='text-3xl font-bold mb-2'>
+                                Admin Panel
+                            </h1>
+                            <p className='text-muted-foreground'>
+                                Manage decks, cards, and users
+                            </p>
+                        </div>
 
-                <div className='w-full sm:max-w-6xl sm:mx-auto p-2 sm:p-4'>
-                    <div className='mb-8'>
-                        <h1 className='text-3xl font-bold mb-2'>Admin Panel</h1>
-                        <p className='text-muted-foreground'>
-                            Manage decks, cards, and users
-                        </p>
-                    </div>
-
-                    {/* Tab Navigation */}
-                    <div className='mb-8'>
-                        <div className='flex space-x-1 bg-muted p-1 rounded-lg w-fit'>
-                            <button
-                                onClick={() => setActiveTab('decks')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                    activeTab === 'decks'
-                                        ? 'bg-background text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                }`}>
-                                <BookOpen className='w-4 h-4' />
-                                Decks
-                            </button>
-                            {isSuperuser && (
+                        {/* Tab Navigation */}
+                        <div className='mb-8'>
+                            <div className='flex space-x-1 bg-muted p-1 rounded-lg w-fit'>
                                 <button
-                                    onClick={() => setActiveTab('users')}
+                                    onClick={() => setActiveTab('decks')}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                                        activeTab === 'users'
+                                        activeTab === 'decks'
                                             ? 'bg-background text-foreground shadow-sm'
                                             : 'text-muted-foreground hover:text-foreground'
                                     }`}>
-                                    <Users className='w-4 h-4' />
-                                    Users
+                                    <BookOpen className='w-4 h-4' />
+                                    Decks
                                 </button>
-                            )}
+                                {isSuperuser && (
+                                    <button
+                                        onClick={() => setActiveTab('users')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                            activeTab === 'users'
+                                                ? 'bg-background text-foreground shadow-sm'
+                                                : 'text-muted-foreground hover:text-foreground'
+                                        }`}>
+                                        <Users className='w-4 h-4' />
+                                        Users
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Tab Content */}
-                    {activeTab === 'decks' && (
-                        <div>
-                            <div className='mb-6'>
-                                <Button onClick={handleCreateDeck}>
-                                    <Plus className='w-4 h-4 mr-2' />
-                                    Create New Deck
-                                </Button>
-                            </div>
-
-                            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
-                                {decks.map((deck) => (
-                                    <Card key={deck.id}>
-                                        <CardHeader>
-                                            <CardTitle className='flex items-center gap-2'>
-                                                <BookOpen className='w-5 h-5' />
-                                                {deck.title}
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className='space-y-4'>
-                                            <div className='text-sm text-muted-foreground'>
-                                                <p>Cards: {deck.stats.total}</p>
-                                                <p>Author: {deck.author}</p>
-                                                <p>
-                                                    Created:{' '}
-                                                    {new Date(
-                                                        deck.createdAt
-                                                    ).toLocaleDateString()}
-                                                </p>
-                                            </div>
-
-                                            <div className='flex gap-2'>
-                                                <Button
-                                                    size='sm'
-                                                    variant='outline'
-                                                    onClick={() =>
-                                                        (window.location.href = `/admin/edit/${deck.id}`)
-                                                    }
-                                                    className='flex-1'>
-                                                    <Edit className='w-4 h-4 mr-1' />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    size='sm'
-                                                    variant='destructive'
-                                                    onClick={() =>
-                                                        handleDeleteDeck(
-                                                            deck.id
-                                                        )
-                                                    }
-                                                    className='flex-1'>
-                                                    <Trash2 className='w-4 h-4 mr-1' />
-                                                    Delete
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-
-                            {decks.length === 0 && (
-                                <div className='text-center py-12'>
-                                    <p className='text-muted-foreground'>
-                                        No decks found. Create your first deck!
-                                    </p>
+                        {/* Tab Content */}
+                        {activeTab === 'decks' && (
+                            <div>
+                                <div className='mb-6'>
+                                    <Button onClick={handleCreateDeck}>
+                                        <Plus className='w-4 h-4 mr-2' />
+                                        Create New Deck
+                                    </Button>
                                 </div>
-                            )}
-                        </div>
-                    )}
 
-                    {activeTab === 'users' && isSuperuser && <UserManagement />}
-                </div>
+                                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
+                                    {decks.map((deck) => (
+                                        <Card key={deck.id}>
+                                            <CardHeader>
+                                                <CardTitle className='flex items-center gap-2'>
+                                                    <BookOpen className='w-5 h-5' />
+                                                    {deck.title}
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className='space-y-4'>
+                                                <div className='text-sm text-muted-foreground'>
+                                                    <p>
+                                                        Cards:{' '}
+                                                        {deck.stats.total}
+                                                    </p>
+                                                    <p>Author: {deck.author}</p>
+                                                    <p>
+                                                        Created:{' '}
+                                                        {new Date(
+                                                            deck.createdAt
+                                                        ).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+
+                                                <div className='flex gap-2'>
+                                                    <Button
+                                                        size='sm'
+                                                        variant='outline'
+                                                        onClick={() =>
+                                                            (window.location.href = `/admin/edit/${deck.id}`)
+                                                        }
+                                                        className='flex-1'>
+                                                        <Edit className='w-4 h-4 mr-1' />
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        size='sm'
+                                                        variant='destructive'
+                                                        onClick={() =>
+                                                            handleDeleteDeck(
+                                                                deck.id
+                                                            )
+                                                        }
+                                                        className='flex-1'>
+                                                        <Trash2 className='w-4 h-4 mr-1' />
+                                                        Delete
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+
+                                {decks.length === 0 && (
+                                    <div className='text-center py-12'>
+                                        <p className='text-muted-foreground'>
+                                            No decks found. Create your first
+                                            deck!
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'users' && isSuperuser && (
+                            <UserManagement />
+                        )}
+                    </div>
+                </ScrollArea>
             </div>
         </ProtectedRoute>
     );
