@@ -8,12 +8,8 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
-import {
-    useDeckDisplay,
-    useCardProgressMutation,
-    useStudySessionCompleteMutation
-} from '@/hooks/queries';
-import { useStudyCards } from '@/lib/queries';
+import { localStorageService } from '@/lib/local-storage';
+import { syncManager } from '@/lib/sync-manager';
 import { reviewCard, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
@@ -30,38 +26,60 @@ export default function StudyPage({ params }: StudyPageProps) {
     const [deckId, setDeckId] = useState<string | undefined>();
     const [session, setSession] = useState<StudySession | null>(null);
     const [currentBatch, setCurrentBatch] = useState(0);
+    const [currentDeck, setCurrentDeck] = useState<any>(null);
+    const [studyData, setStudyData] = useState<CardType[]>([]);
+    const [totalCardsStudied, setTotalCardsStudied] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
     const { user } = useAuth();
 
-    const cardProgressMutation = useCardProgressMutation();
-    const studySessionCompleteMutation = useStudySessionCompleteMutation();
-    
-    // Get deck metadata for UI (title, etc.) - this is fast and doesn't load cards
-    const {
-        data: deckMetadata,
-        isLoading: isDeckMetadataLoading,
-        error: deckMetadataError
-    } = useDeckDisplay();
-    
-    // Find the current deck from metadata
-    const currentDeck = deckMetadata?.find(d => d.id === deckId);
-    
-    // Lazy load study cards only when we're ready to study
-    const [shouldLoadCards, setShouldLoadCards] = useState(false);
-    
-    const {
-        data: studyData,
-        isLoading: isStudyLoading,
-        error: studyError
-    } = useStudyCards(deckId || '', user?.id, shouldLoadCards && !!deckId && !!user);
+    const loadStudyData = async (deckId: string) => {
+        if (!user) return;
+        
+        try {
+            setIsLoading(true);
+            setError(null);
+            
+            // Ensure data is initialized (wait for sync if needed)
+            if (!localStorageService.isInitialized(user.id)) {
+                console.log('Data not initialized, starting sync...');
+                setIsSyncing(true);
+                await syncManager.initialize(user.id);
+                setIsSyncing(false);
+            }
+            
+            // Get deck metadata from localStorage
+            const deckMetadata = localStorageService.getDecks(user.id);
+            const deck = deckMetadata.find(d => d.id === deckId);
+            setCurrentDeck(deck);
+            
+            if (!deck) {
+                setError('Deck not found');
+                return;
+            }
+            
+            // Get study cards from localStorage (only due cards)
+            const cards = localStorageService.getStudyCards(deckId, user.id);
+            console.log(`Loaded ${cards.length} study cards for deck: ${deck.title}`);
+            setStudyData(cards);
+            
+        } catch (err) {
+            console.error('Error loading study data:', err);
+            setError('Failed to load study data');
+        } finally {
+            setIsLoading(false);
+            setIsSyncing(false);
+        }
+    };
 
     React.useEffect(() => {
         params.then((resolvedParams) => {
             setDeckId(resolvedParams.deckId);
-            // Start loading cards once we have the deck ID
-            setShouldLoadCards(true);
+            loadStudyData(resolvedParams.deckId);
         });
-    }, [params]);
+    }, [params, user]);
 
     React.useEffect(() => {
         if (studyData && deckId && !session) {
@@ -74,6 +92,9 @@ export default function StudyPage({ params }: StudyPageProps) {
             const batchSize = 10;
             const cardsToLoad = studyData.slice(0, batchSize);
 
+            // Reset total cards studied for new session
+            setTotalCardsStudied(0);
+            
             setSession({
                 deckId: deckId,
                 cards: cardsToLoad,
@@ -87,7 +108,8 @@ export default function StudyPage({ params }: StudyPageProps) {
     React.useEffect(() => {
         if (session && studyData && session.currentIndex >= session.cards.length - 3) {
             const batchSize = 10;
-            const nextBatchStart = session.cards.length;
+            const totalLoadedCards = totalCardsStudied + session.cards.length;
+            const nextBatchStart = totalLoadedCards;
             const nextBatchEnd = nextBatchStart + batchSize;
             const nextBatch = studyData.slice(nextBatchStart, nextBatchEnd);
             
@@ -98,33 +120,39 @@ export default function StudyPage({ params }: StudyPageProps) {
                 } : null);
             }
         }
-    }, [session, studyData]);
+    }, [session, studyData, totalCardsStudied]);
 
     React.useEffect(() => {
-        if (deckMetadataError || studyError) {
-            console.error('Error loading deck:', deckMetadataError || studyError);
+        if (error) {
+            console.error('Error loading deck:', error);
             router.push('/');
         }
-    }, [deckMetadataError, studyError, router]);
+    }, [error, router]);
 
     const handleRating = async (rating: Rating) => {
         if (!session || !studyData) return;
 
         try {
             const currentCard = session.cards[session.currentIndex];
+            console.log('Rating card:', currentCard.id, 'with rating:', rating);
+            
             const updatedCard = reviewCard(currentCard, rating);
+            console.log('Updated card FSRS data:', updatedCard.fsrsData);
 
-            // Save progress to database with optimistic update
-            cardProgressMutation.mutate({
-                cardId: updatedCard.id,
-                fsrsData: updatedCard.fsrsData
-            });
+            // Save progress to localStorage (will sync to database automatically)
+            if (user) {
+                console.log('Saving progress for card:', updatedCard.id);
+                syncManager.saveCardProgress(updatedCard.id, user.id, updatedCard.fsrsData);
+                console.log('Progress save completed');
+            } else {
+                console.log('No user - not saving progress');
+            }
 
             const nextIndex = session.currentIndex + 1;
             if (nextIndex >= session.cards.length) {
+                // Add the completed batch to total cards studied
+                setTotalCardsStudied(prev => prev + session.cards.length);
                 setSession({ ...session, completed: true });
-                // Trigger query invalidation now that the session is complete
-                studySessionCompleteMutation.mutate();
             } else {
                 setSession({ ...session, currentIndex: nextIndex });
             }
@@ -134,25 +162,34 @@ export default function StudyPage({ params }: StudyPageProps) {
     };
 
     const handleReturnToDashboard = () => {
-        // Trigger query invalidation before leaving
-        studySessionCompleteMutation.mutate();
         router.push('/');
     };
 
-    const handleStudyAgain = () => {
-        if (!studyData || !deckId) return;
+    const handleStudyAgain = async () => {
+        if (!deckId || !user) return;
 
-        if (studyData.length > 0) {
-            setSession({
-                deckId: deckId,
-                cards: studyData,
-                currentIndex: 0,
-                completed: false
-            });
+        // Reload study data to get fresh cards
+        try {
+            const cards = localStorageService.getStudyCards(deckId, user.id);
+            setStudyData(cards);
+            
+            if (cards.length > 0) {
+                // Reset total cards studied for new session
+                setTotalCardsStudied(0);
+                
+                setSession({
+                    deckId: deckId,
+                    cards: cards.slice(0, 10), // Load first batch
+                    currentIndex: 0,
+                    completed: false
+                });
+            }
+        } catch (error) {
+            console.error('Error reloading study data:', error);
         }
     };
 
-    if (isDeckMetadataLoading || isStudyLoading) {
+    if (isLoading) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
@@ -160,8 +197,11 @@ export default function StudyPage({ params }: StudyPageProps) {
                         <BackButton href='/' />
                     </div>
                     <div className='text-center py-12'>
+                        {isSyncing && (
+                            <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+                        )}
                         <p className='text-muted-foreground'>
-                            Loading study session...
+                            {isSyncing ? 'Syncing data...' : 'Loading study session...'}
                         </p>
                     </div>
                 </div>
@@ -252,8 +292,12 @@ export default function StudyPage({ params }: StudyPageProps) {
     }
 
     const currentCard = session.cards[session.currentIndex];
-    const progressPercentage =
-        ((session.currentIndex + 1) / session.cards.length) * 100;
+    // Calculate progress based on total due cards, not loaded cards
+    const totalDueCards = studyData.length;
+    const overallProgress = totalCardsStudied + session.currentIndex + 1;
+    const progressPercentage = totalDueCards > 0 
+        ? (overallProgress / totalDueCards) * 100 
+        : 0;
 
     return (
         <ProtectedRoute>
@@ -297,11 +341,10 @@ export default function StudyPage({ params }: StudyPageProps) {
                             card={currentCard}
                             onRate={handleRating}
                             isLast={
-                                session.currentIndex ===
-                                session.cards.length - 1
+                                overallProgress === totalDueCards
                             }
-                            currentIndex={session.currentIndex}
-                            totalCards={session.cards.length}
+                            currentIndex={overallProgress - 1}
+                            totalCards={totalDueCards}
                         />
                     </div>
                 </div>

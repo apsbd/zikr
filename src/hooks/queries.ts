@@ -67,22 +67,7 @@ export function useCardProgressMutation() {
         mutationFn: ({ cardId, fsrsData }: { cardId: string; fsrsData: any }) => 
             saveCardProgress(cardId, fsrsData, user?.id),
         onSuccess: (_, { cardId }) => {
-            console.log('Card progress saved for card:', cardId);
-            
-            // Invalidate dashboard queries to update progress
-            queryClient.invalidateQueries({
-                queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
-            });
-            
-            // Also invalidate the new query system
-            queryClient.invalidateQueries({
-                predicate: (query) => {
-                    const [key] = query.queryKey;
-                    return key === 'decks' && query.queryKey.includes('metadata');
-                }
-            });
-            
-            console.log('Dashboard queries invalidated after card progress update');
+            // Not needed anymore - using direct API calls
         },
     });
 }
@@ -97,31 +82,7 @@ export function useStudySessionCompleteMutation() {
             return Promise.resolve();
         },
         onSuccess: () => {
-            console.log('Study session completed - invalidating queries...');
-            
-            // Clear all deck-related cache completely
-            queryClient.removeQueries({
-                queryKey: [QUERY_KEYS.DECKS, user?.id],
-            });
-            queryClient.removeQueries({
-                queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
-            });
-            queryClient.removeQueries({
-                predicate: (query) => {
-                    const [key] = query.queryKey;
-                    return key === QUERY_KEYS.DECK || key === QUERY_KEYS.STUDY_CARDS;
-                }
-            });
-            
-            // Also clear the new query system cache
-            queryClient.removeQueries({
-                predicate: (query) => {
-                    const [key] = query.queryKey;
-                    return key === 'decks';
-                }
-            });
-            
-            console.log('Cache cleared - forcing fresh data fetch');
+            // Not needed anymore - using direct API calls
         },
     });
 }

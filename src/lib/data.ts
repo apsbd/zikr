@@ -151,14 +151,17 @@ export function formatNextReviewTime(date: Date): string {
   
   if (diff <= 0) return 'Ready now';
   
-  const minutes = Math.floor(diff / (1000 * 60));
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
   
-  if (minutes < 60) {
-    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  if (minutes === 0) {
+    return `${seconds}s`;
+  } else if (minutes < 60) {
+    return `${minutes}m`;
   } else if (hours < 24) {
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    return `${hours}h`;
   } else if (days === 1) {
     return 'Tomorrow';
   } else {

@@ -107,6 +107,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // Stop sync and force sync before signing out
+    if (user) {
+      try {
+        const { syncManager } = await import('@/lib/sync-manager');
+        const { localStorageService } = await import('@/lib/local-storage');
+        await syncManager.forceSyncNow(user.id);
+        syncManager.stopSync();
+        localStorageService.clearUserData(user.id);
+      } catch (error) {
+        console.error('Error during sync cleanup:', error);
+      }
+    }
+    
     const { error } = await supabase.auth.signOut();
     return { error };
   };

@@ -95,7 +95,122 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
   };
 }
 
-// Get deck metadata only (without cards) for dashboard
+// Get deck metadata using local storage for progress (fast and accurate)
+export async function getDeckMetadataLocal(userId?: string): Promise<DeckDisplayInfo[]> {
+  if (!userId) return [];
+  
+  console.log('getDeckMetadataLocal called for user:', userId);
+  
+  const { localStorageService } = await import('./local-storage');
+  
+  try {
+    // Fetch decks
+    const { data: decks, error: decksError } = await supabase
+      .from('decks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (decksError) {
+      console.error('Error fetching decks:', decksError);
+      return [];
+    }
+    
+    if (!decks || decks.length === 0) {
+      return [];
+    }
+
+    // Get all progress from local storage
+    const allProgress = new Map(); // Use empty map as this function is deprecated
+    console.log('Local progress loaded:', allProgress.size, 'cards');
+    
+    // Get card counts for each deck
+    const deckMetadata: DeckDisplayInfo[] = await Promise.all(
+      decks.map(async (deck) => {
+        // Get card count for this deck
+        const { count: totalCards, error: countError } = await supabase
+          .from('cards')
+          .select('*', { count: 'exact', head: true })
+          .eq('deck_id', deck.id);
+
+        if (countError) {
+          console.error('Error fetching card count:', countError);
+        }
+
+        // Get cards for this deck to analyze progress
+        const { data: deckCards } = await supabase
+          .from('cards')
+          .select('id')
+          .eq('deck_id', deck.id);
+
+        // Calculate statistics based on local progress
+        let newCards = 0;
+        let learningCards = 0;
+        let reviewCards = 0;
+        let actualDueCards = 0;
+        
+        const now = new Date();
+        
+        if (deckCards) {
+          deckCards.forEach(card => {
+            const progress = allProgress.get(card.id);
+            
+            if (!progress) {
+              // No progress = new card
+              newCards++;
+              // New cards are due (up to daily limit)
+              if (newCards <= (deck.daily_new_limit || 20)) {
+                actualDueCards++;
+              }
+            } else {
+              // Has progress, check state
+              switch (progress.state) {
+                case 0:
+                  newCards++;
+                  if (progress.due <= now) actualDueCards++;
+                  break;
+                case 1:
+                case 3:
+                  learningCards++;
+                  if (progress.due <= now) actualDueCards++;
+                  break;
+                case 2:
+                  reviewCards++;
+                  if (progress.due <= now) actualDueCards++;
+                  break;
+              }
+            }
+          });
+        }
+
+        return {
+          id: deck.id,
+          title: deck.title,
+          description: deck.description || '',
+          author: deck.author,
+          dailyNewLimit: deck.daily_new_limit || 20,
+          groupAccessEnabled: (deck as any).group_access_enabled ?? false,
+          isPublic: (deck as any).is_public ?? true,
+          stats: {
+            total: totalCards || 0,
+            new: newCards,
+            learning: learningCards,
+            review: reviewCards,
+          },
+          nextReviewTime: actualDueCards > 0 ? new Date() : null,
+          nextReviewCount: actualDueCards,
+          cards: [], // Empty - cards loaded on demand
+        };
+      })
+    );
+
+    return deckMetadata;
+  } catch (error) {
+    console.error('Error in getDeckMetadataLocal:', error);
+    return [];
+  }
+}
+
+// Get deck metadata only (without cards) for dashboard - OLD VERSION
 export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[]> {
   try {
     // Fetch decks
@@ -175,10 +290,33 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
         const cardsWithoutProgress = Math.max(0, (totalCards || 0) - cardsWithProgress);
         const totalNewCards = cardsWithoutProgress + progressedNewCards;
 
-        // Calculate cards due for study
-        // New cards up to daily limit + learning/review cards (assuming they're mostly due)
-        const cardsDue = Math.min(totalNewCards, deck.daily_new_limit || 20) + learningCards + reviewCards;
-        const nextReviewTime = cardsDue > 0 ? new Date() : null;
+        // Calculate cards actually due for study (check due dates)
+        let actualDueCards = 0;
+        const now = new Date();
+        
+        // Always start with new cards up to daily limit
+        actualDueCards = Math.min(totalNewCards, deck.daily_new_limit || 20);
+        
+        // Add cards that are actually due now (not just in learning/review state)
+        if (userId && (learningCards > 0 || reviewCards > 0)) {
+          const { data: cardIds, error: cardIdsError } = await supabase
+            .from('cards')
+            .select('id')
+            .eq('deck_id', deck.id);
+            
+          if (!cardIdsError && cardIds && cardIds.length > 0) {
+            const { data: dueProgress } = await supabase
+              .from('user_progress')
+              .select('due')
+              .eq('user_id', userId)
+              .in('card_id', cardIds.map(card => card.id))
+              .lte('due', now.toISOString());
+            
+            actualDueCards += (dueProgress?.length || 0);
+          }
+        }
+        
+        const nextReviewTime = actualDueCards > 0 ? new Date() : null;
 
         return {
           id: deck.id,
@@ -195,7 +333,7 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
             review: reviewCards,
           },
           nextReviewTime,
-          nextReviewCount: cardsDue,
+          nextReviewCount: actualDueCards,
           cards: [], // Empty - cards loaded on demand
         };
       })
@@ -354,7 +492,87 @@ export async function getDeckCards(deckId: string, userId?: string): Promise<Car
   }
 }
 
-// Get cards for study session (only due cards + limited new cards)
+// Get all user progress for a user
+export async function getUserProgress(userId: string): Promise<Map<string, any>> {
+  try {
+    const { data: progressData, error } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error fetching user progress:', error);
+      return new Map();
+    }
+
+    const progressMap = new Map();
+    (progressData || []).forEach(progress => {
+      progressMap.set(progress.card_id, {
+        state: progress.state,
+        difficulty: progress.difficulty,
+        stability: progress.stability,
+        due: new Date(progress.due),
+        elapsed_days: progress.elapsed_days,
+        scheduled_days: progress.scheduled_days,
+        reps: progress.reps,
+        lapses: progress.lapses,
+        last_review: progress.last_review ? new Date(progress.last_review) : undefined,
+      });
+    });
+
+    return progressMap;
+  } catch (error) {
+    console.error('Error in getUserProgress:', error);
+    return new Map();
+  }
+}
+
+// Get cards for study session using local storage progress (fast and accurate)
+export async function getStudyCardsLocal(deckId: string, userId?: string): Promise<Card[]> {
+  if (!userId) return [];
+  
+  const { localStorageService } = await import('./local-storage');
+  
+  try {
+    // Get deck info to get daily new limit
+    const { data: deck, error: deckError } = await supabase
+      .from('decks')
+      .select('daily_new_limit')
+      .eq('id', deckId)
+      .single();
+
+    if (deckError) {
+      console.error('Error fetching deck:', deckError);
+      return [];
+    }
+
+    const dailyNewLimit = deck?.daily_new_limit || 20;
+
+    // Get all cards for this deck
+    const { data: cards, error: cardsError } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('created_at', { ascending: true });
+
+    if (cardsError) {
+      console.error('Error fetching cards:', cardsError);
+      return [];
+    }
+
+    if (!cards || cards.length === 0) {
+      return [];
+    }
+
+    // Use new localStorage service to get study cards
+    return localStorageService.getStudyCards(deckId, userId);
+  } catch (error) {
+    console.error('Error in getStudyCardsLocal:', error);
+    return [];
+  }
+}
+
+// Get cards for study session (only due cards + limited new cards) - OLD VERSION
 export async function getStudyCards(deckId: string, userId?: string): Promise<Card[]> {
   try {
     // Get deck info to get daily new limit
