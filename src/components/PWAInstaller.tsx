@@ -42,10 +42,8 @@ export default function PWAInstaller() {
             navigator.serviceWorker
                 .register('/sw.js')
                 .then((registration) => {
-                    console.log('SW registered: ', registration);
                 })
                 .catch((registrationError) => {
-                    console.log('SW registration failed: ', registrationError);
                 });
         }
 
@@ -83,9 +81,7 @@ export default function PWAInstaller() {
             const { outcome } = await deferredPrompt.userChoice;
 
             if (outcome === 'accepted') {
-                console.log('User accepted the install prompt');
             } else {
-                console.log('User dismissed the install prompt');
             }
 
             setDeferredPrompt(null);

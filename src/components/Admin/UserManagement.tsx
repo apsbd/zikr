@@ -18,14 +18,11 @@ export default function UserManagement() {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            console.log('Loading users...');
             
             // Run debug function for logging
             const debugResult = await debugGetAllUserProfiles();
-            console.log('Debug result:', debugResult);
             
             const userProfiles = await getAllUserProfiles();
-            console.log('Loaded user profiles:', userProfiles);
             setUsers(userProfiles);
         } catch (error) {
             console.error('Error loading users:', error);

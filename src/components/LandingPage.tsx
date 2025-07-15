@@ -69,7 +69,6 @@ export default function LandingPage() {
             const { outcome } = await deferredPrompt.userChoice;
 
             if (outcome === 'accepted') {
-                console.log('User accepted the install prompt');
                 // After installation, proceed to the app
                 setTimeout(() => handleUseWebVersion(), 1000);
             }

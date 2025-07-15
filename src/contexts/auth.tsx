@@ -36,10 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           // Initialize user profile for existing session
           if (session?.user) {
-            console.log('Existing session found, ensuring profile exists...');
             try {
               await initializeUserProfile(session.user.id, session.user.email || '');
-              console.log('User profile ensured for existing session');
             } catch (profileError) {
               console.error('Error ensuring user profile for existing session:', profileError);
             }
@@ -63,10 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Initialize user profile when user signs in
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('User signed in, initializing profile...');
           try {
             await initializeUserProfile(session.user.id, session.user.email || '');
-            console.log('User profile initialized successfully');
           } catch (error) {
             console.error('Error initializing user profile:', error);
           }
@@ -85,10 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Initialize user profile if signup was successful
     if (!error && data.user) {
-      console.log('User signed up successfully, initializing profile...');
       try {
         await initializeUserProfile(data.user.id, data.user.email || '');
-        console.log('User profile initialized after signup');
       } catch (profileError) {
         console.error('Error initializing user profile after signup:', profileError);
         // Don't return this error as the signup itself was successful

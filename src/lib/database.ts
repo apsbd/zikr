@@ -27,11 +27,9 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
         .eq('card_id', dbCard.id);
       
       if (error) {
-        console.log('Error querying progress for card:', dbCard.id, 'error:', error.message);
         fsrsData = initializeFSRSCard();
       } else if (progressArray && progressArray.length > 0) {
         const progress = progressArray[0]; // Take the first (should be only) result
-        console.log('Found progress for card:', dbCard.id, progress);
         fsrsData = {
           state: progress.state,
           difficulty: progress.difficulty,
@@ -44,7 +42,6 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
           last_review: progress.last_review ? new Date(progress.last_review) : undefined,
         };
       } else {
-        console.log('No progress data for card:', dbCard.id);
         fsrsData = initializeFSRSCard();
       }
     } else {
@@ -61,7 +58,6 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
             last_review: progress.last_review ? new Date(progress.last_review) : undefined,
           };
         } catch (error) {
-          console.error('Error parsing card progress:', error);
           fsrsData = initializeFSRSCard();
         }
       } else {
@@ -99,8 +95,6 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
 export async function getDeckMetadataLocal(userId?: string): Promise<DeckDisplayInfo[]> {
   if (!userId) return [];
   
-  console.log('getDeckMetadataLocal called for user:', userId);
-  
   const { localStorageService } = await import('./local-storage');
   
   try {
@@ -121,7 +115,6 @@ export async function getDeckMetadataLocal(userId?: string): Promise<DeckDisplay
 
     // Get all progress from local storage
     const allProgress = new Map(); // Use empty map as this function is deprecated
-    console.log('Local progress loaded:', allProgress.size, 'cards');
     
     // Get card counts for each deck
     const deckMetadata: DeckDisplayInfo[] = await Promise.all(
@@ -434,7 +427,6 @@ export async function getDeckCards(deckId: string, userId?: string): Promise<Car
           .eq('card_id', dbCard.id);
         
         if (error) {
-          console.log('Error querying progress for card:', dbCard.id, 'error:', error.message);
           fsrsData = initializeFSRSCard();
         } else if (progressArray && progressArray.length > 0) {
           const progress = progressArray[0];
@@ -700,7 +692,6 @@ export async function getDeckById(id: string, userId?: string): Promise<Deck | u
     //   if (!isAdmin) {
     //     const hasAccess = await checkDeckAccess(id, userId);
     //     if (!hasAccess) {
-    //       console.log('User does not have access to this deck');
     //       return undefined;
     //     }
     //   }
@@ -855,7 +846,6 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
         );
       });
 
-      console.log(`Updating ${cardsToUpdate.length} out of ${existingCardsToUpdate.length} existing cards`);
 
       // Update only the cards that have changed
       for (const card of cardsToUpdate) {
@@ -887,7 +877,6 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
 export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'], userId?: string): Promise<void> {
   try {
     if (userId) {
-      console.log('Saving progress for user:', userId, 'card:', cardId, 'data:', fsrsData);
       
       // Save to database for authenticated users
       const progressData = {
@@ -916,7 +905,6 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
       const existing = existingArray && existingArray.length > 0;
       
       if (existing) {
-        console.log('Updating existing progress for card:', cardId);
         const { error } = await supabase
           .from('user_progress')
           .update(progressData)
@@ -926,10 +914,8 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
         if (error) {
           console.error('Error updating user progress:', error);
         } else {
-          console.log('Successfully updated progress for card:', cardId);
         }
       } else {
-        console.log('Creating new progress for card:', cardId);
         const { error } = await supabase
           .from('user_progress')
           .insert({ ...progressData, created_at: new Date().toISOString() });
@@ -937,7 +923,6 @@ export async function saveCardProgress(cardId: string, fsrsData: Card['fsrsData'
         if (error) {
           console.error('Error inserting user progress:', error);
         } else {
-          console.log('Successfully created progress for card:', cardId);
         }
       }
     } else {
@@ -1047,7 +1032,6 @@ export function getTimeIndicatorClass(date: Date): string {
 // Get user profile by user ID
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   try {
-    console.log('Fetching user profile for userId:', userId);
     
     const { data, error } = await supabase
       .from('user_profiles')
@@ -1066,7 +1050,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       return null;
     }
 
-    console.log('Successfully fetched user profile:', data);
     
     // Handle missing is_banned field for backward compatibility
     if (data && data.is_banned === undefined) {
@@ -1104,17 +1087,13 @@ export async function getUserProfileByEmail(email: string): Promise<UserProfile 
 // Get all user profiles (admin/superuser only)
 export async function getAllUserProfiles(): Promise<UserProfile[]> {
   try {
-    console.log('Fetching all user profiles...');
-    console.log('Supabase client initialized:', !!supabase);
     
     // First get current user info
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    console.log('Current user:', currentUser);
     
     // Get current user's profile to check role
     if (currentUser) {
       const currentProfile = await getUserProfile(currentUser.id);
-      console.log('Current user profile:', currentProfile);
     }
     
     // First check if the table exists and what columns it has
@@ -1123,7 +1102,6 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
       .select('*')
       .limit(1);
     
-    console.log('Table info query result:', { tableInfo, tableError });
     
     const { data, error } = await supabase
       .from('user_profiles')
@@ -1141,14 +1119,9 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
       return [];
     }
 
-    console.log('Raw data from database:', data);
-    console.log('Number of profiles found:', data?.length || 0);
-    console.log('Data type:', typeof data);
-    console.log('Is array?', Array.isArray(data));
     
     if (data) {
       data.forEach((profile, index) => {
-        console.log(`Profile ${index}:`, profile);
       });
     }
     
@@ -1158,7 +1131,6 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
       is_banned: profile.is_banned ?? false
     }));
 
-    console.log('Processed profiles:', profiles);
     return profiles;
   } catch (error) {
     console.error('Error in getAllUserProfiles:', error);
@@ -1170,7 +1142,6 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
 // Get all authenticated users who might not have profiles yet
 export async function getAllAuthenticatedUsers(): Promise<any[]> {
   try {
-    console.log('Fetching all authenticated users...');
     
     // This requires admin privileges - might not work in client-side code
     // const { data, error } = await supabase.auth.admin.listUsers();
@@ -1187,26 +1158,22 @@ export async function getAllAuthenticatedUsers(): Promise<any[]> {
 // Debug function to check user profiles without RLS
 export async function debugGetAllUserProfiles(): Promise<any> {
   try {
-    console.log('DEBUG: Fetching all user profiles without RLS...');
     
     // Try to get raw count first
     const { count, error: countError } = await supabase
       .from('user_profiles')
       .select('*', { count: 'exact', head: true });
     
-    console.log('DEBUG: Raw count query result:', { count, countError });
     
     // Try to get count using our function
     const { data: countData, error: countFnError } = await supabase
       .rpc('get_user_profiles_count');
     
-    console.log('DEBUG: Count function result:', { countData, countFnError });
     
     // Try to get data with RLS bypass (this might fail)
     const { data: rawData, error: rawError } = await supabase
       .rpc('get_all_user_profiles_debug');
     
-    console.log('DEBUG: RPC call result:', { rawData, rawError });
     
     return { count, countError, countData, countFnError, rawData, rawError };
   } catch (error) {
@@ -1218,7 +1185,6 @@ export async function debugGetAllUserProfiles(): Promise<any> {
 // Helper function to get all authenticated users (for debugging)
 export async function getAllAuthUsers() {
   try {
-    console.log('Fetching all auth users...');
     
     // Note: This requires admin privileges and may not work in client-side code
     // This is mainly for debugging to see if there are auth users without profiles
@@ -1229,7 +1195,6 @@ export async function getAllAuthUsers() {
       return [];
     }
 
-    console.log('Auth users:', data.users);
     return data.users;
   } catch (error) {
     console.error('Error in getAllAuthUsers:', error);
@@ -1301,17 +1266,13 @@ export async function updateUserBanStatus(userId: string, isBanned: boolean): Pr
 // Check if user has admin privileges
 export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
-    console.log('Checking admin status for userId:', userId);
     const profile = await getUserProfile(userId);
-    console.log('Profile for admin check:', profile);
     
     if (!profile) {
-      console.log('No profile found for user');
       return false;
     }
     
     const isAdmin = profile.role === 'admin' || profile.role === 'superuser';
-    console.log('Admin status result:', isAdmin);
     return isAdmin;
   } catch (error) {
     console.error('Error checking admin status:', error);
@@ -1322,17 +1283,13 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
 // Check if user is superuser
 export async function isUserSuperuser(userId: string): Promise<boolean> {
   try {
-    console.log('Checking superuser status for userId:', userId);
     const profile = await getUserProfile(userId);
-    console.log('Profile for superuser check:', profile);
     
     if (!profile) {
-      console.log('No profile found for user');
       return false;
     }
     
     const isSuperuser = profile.role === 'superuser';
-    console.log('Superuser status result:', isSuperuser);
     return isSuperuser;
   } catch (error) {
     console.error('Error checking superuser status:', error);
@@ -1375,7 +1332,6 @@ export async function getUsersForDeckAccess(
   pageSize: number = 10
 ): Promise<{ users: UserSelectionItem[], total: number }> {
   try {
-    console.log('Getting users for deck access:', { deckId, search, page, pageSize });
     
     // Get all user profiles with optional search
     let query = supabase
@@ -1434,7 +1390,6 @@ export async function getUsersForDeckAccess(
 // Grant deck access to a user
 export async function grantDeckAccess(deckId: string, userId: string, grantedBy: string): Promise<boolean> {
   try {
-    console.log('Granting deck access:', { deckId, userId, grantedBy });
     
     const { error } = await supabase
       .from('deck_user_access')
@@ -1459,7 +1414,6 @@ export async function grantDeckAccess(deckId: string, userId: string, grantedBy:
 // Revoke deck access from a user
 export async function revokeDeckAccess(deckId: string, userId: string): Promise<boolean> {
   try {
-    console.log('Revoking deck access:', { deckId, userId });
     
     const { error } = await supabase
       .from('deck_user_access')

@@ -38,10 +38,8 @@ function Dashboard() {
             
             // Load decks from localStorage (instant)
             const decks = localStorageService.getDecks(user.id);
-            console.log('Loaded decks from localStorage:', decks.length);
             setDisplayDecks(decks);
         } catch (err) {
-            console.error('Error loading decks:', err);
             setError('Failed to load decks');
         } finally {
             setIsLoading(false);
@@ -49,8 +47,23 @@ function Dashboard() {
         }
     };
 
+    // Push progress then pull fresh data
+    const pushThenPull = async () => {
+        if (!user) return;
+        setIsSyncing(true);
+        try {
+            await syncManager.pushThenPull(user.id);
+            const decks = localStorageService.getDecks(user.id);
+            setDisplayDecks(decks);
+        } catch (err) {
+            // Error handled by sync manager events
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     // Force full resync (for debugging)
-    const forceResync = async () => {
+    const forceFullResync = async () => {
         if (!user) return;
         setIsSyncing(true);
         try {
@@ -58,7 +71,7 @@ function Dashboard() {
             const decks = localStorageService.getDecks(user.id);
             setDisplayDecks(decks);
         } catch (err) {
-            console.error('Error during force resync:', err);
+            // Error handled by sync manager events
         } finally {
             setIsSyncing(false);
         }
@@ -74,21 +87,17 @@ function Dashboard() {
         
         // Listen for data updates and sync events
         const handleDataUpdate = () => {
-            console.log('Data updated - refreshing dashboard...');
             if (user) {
                 const decks = localStorageService.getDecks(user.id);
-                console.log('Refreshed dashboard with', decks.length, 'decks');
                 setDisplayDecks(decks);
             }
         };
         
         const handleSyncStarted = () => {
-            console.log('Sync started');
             setIsSyncing(true);
         };
         
         const handleSyncCompleted = () => {
-            console.log('Sync completed - refreshing dashboard...');
             setIsSyncing(false);
             if (user) {
                 const decks = localStorageService.getDecks(user.id);
@@ -97,7 +106,6 @@ function Dashboard() {
         };
         
         const handleSyncError = (event: any) => {
-            console.error('Sync error:', event.detail?.error);
             setIsSyncing(false);
             setError('Sync failed - working offline');
         };
@@ -229,23 +237,6 @@ function Dashboard() {
                         </div>
                     )}
 
-                    {/* Debug Controls */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
-                            <div className='text-center'>
-                                <button
-                                    onClick={forceResync}
-                                    disabled={isSyncing}
-                                    className='px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50'
-                                >
-                                    {isSyncing ? 'Syncing...' : 'Force Full Resync'}
-                                </button>
-                                <p className='text-xs text-gray-600 mt-2'>
-                                    Development only: Clear local data and re-download everything
-                                </p>
-                            </div>
-                        </div>
-                    )}
 
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
                         {displayDecks.map((deck) => (

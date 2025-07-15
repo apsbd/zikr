@@ -38,7 +38,6 @@ class SyncManager {
     try {
       return JSON.parse(data);
     } catch (error) {
-      console.error('Error parsing localStorage data:', error);
       return null;
     }
   }
@@ -72,14 +71,12 @@ class SyncManager {
     
     // If data exists and doesn't need sync, just schedule next sync
     if (data && data.isInitialized && !this.needsSync(userId)) {
-      console.log('Data is up to date, scheduling next sync');
       this.scheduleNextSync(userId);
       return;
     }
 
     // Need to sync
     this.isSyncing = true;
-    console.log('Starting sync process...');
     
     try {
       // Dispatch syncing event
@@ -95,8 +92,6 @@ class SyncManager {
         getDeckMetadata(userId),
         getUserProgress(userId),
       ]);
-      
-      console.log(`Loaded ${decks.length} decks for initial sync`);
       
       // Convert progress map to object
       const progressObj: Record<string, any> = {};
@@ -117,12 +112,10 @@ class SyncManager {
       // Load ALL cards for each deck (not just study cards)
       const studyCardsObj: Record<string, Card[]> = {};
       for (const deck of decks) {
-        console.log(`Loading all cards for deck: ${deck.title} (${deck.id})`);
         // Use getDeckCards to get all cards, not just study cards
         const { getDeckCards } = await import('./database');
         const cards = await getDeckCards(deck.id, userId);
         studyCardsObj[deck.id] = cards;
-        console.log(`Loaded ${cards.length} cards for deck: ${deck.title}`);
         
         // Update deck stats with correct total
         deck.stats.total = cards.length;
@@ -147,8 +140,6 @@ class SyncManager {
       // Schedule next sync
       this.scheduleNextSync(userId);
       
-      console.log('Sync completed successfully');
-      
       // Mark as initialized
       this.isInitialized = true;
       
@@ -156,8 +147,6 @@ class SyncManager {
       window.dispatchEvent(new CustomEvent('sync-completed'));
       
     } catch (error) {
-      console.error('Sync failed:', error);
-      
       // Dispatch sync error event
       window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
       
@@ -175,7 +164,6 @@ class SyncManager {
     if (this.isSyncing) return;
     
     this.isSyncing = true;
-    console.log('Background sync starting...');
     
     try {
       const data = this.loadLocalData(userId);
@@ -204,7 +192,6 @@ class SyncManager {
       const { getDeckCards } = await import('./database');
       for (const deck of decks) {
         if (!data.studyCards[deck.id] || data.studyCards[deck.id].length === 0) {
-          console.log(`Refreshing cards for deck: ${deck.title}`);
           const cards = await getDeckCards(deck.id, userId);
           data.studyCards[deck.id] = cards;
           deck.stats.total = cards.length;
@@ -240,14 +227,10 @@ class SyncManager {
       // Schedule next sync
       this.scheduleNextSync(userId);
       
-      console.log('Background sync completed');
-      
       // Notify components
       window.dispatchEvent(new CustomEvent('data-updated'));
       
     } catch (error) {
-      console.error('Background sync failed:', error);
-      
       // Retry in 5 minutes
       setTimeout(() => {
         this.backgroundSync(userId);
@@ -260,8 +243,6 @@ class SyncManager {
   // Sync pending progress to database
   private async syncPendingProgress(userId: string, pending: PendingProgress[]): Promise<void> {
     if (pending.length === 0) return;
-    
-    console.log(`Syncing ${pending.length} pending progress items...`);
     
     const synced: string[] = [];
     
@@ -277,7 +258,7 @@ class SyncManager {
         await saveCardProgress(item.cardId, fsrsData, userId);
         synced.push(item.cardId);
       } catch (error) {
-        console.error(`Failed to sync progress for card ${item.cardId}:`, error);
+        // Failed to sync this item, will retry later
       }
     }
     
@@ -287,8 +268,6 @@ class SyncManager {
       data.pendingProgress = data.pendingProgress.filter(item => !synced.includes(item.cardId));
       this.saveLocalData(userId, data);
     }
-    
-    console.log(`Synced ${synced.length} progress items`);
   }
 
   // Schedule next sync
@@ -308,8 +287,6 @@ class SyncManager {
       this.syncTimeout = setTimeout(() => {
         this.backgroundSync(userId);
       }, timeToSync);
-      
-      console.log(`Next sync scheduled in ${Math.round(timeToSync / 1000 / 60)} minutes`);
     } else {
       // Sync immediately if overdue
       this.backgroundSync(userId);
@@ -318,11 +295,8 @@ class SyncManager {
 
   // Save card progress (offline-first)
   saveCardProgress(cardId: string, userId: string, fsrsData: any): void {
-    console.log('syncManager.saveCardProgress called:', { cardId, userId, fsrsData });
-    
     const data = this.loadLocalData(userId);
     if (!data) {
-      console.log('No local data found for user:', userId);
       return;
     }
     
@@ -356,11 +330,9 @@ class SyncManager {
     
     // Save to localStorage
     this.saveLocalData(userId, data);
-    console.log('Local data saved, dispatching progress-updated event');
     
     // Notify components
     window.dispatchEvent(new CustomEvent('progress-updated', { detail: { cardId, userId } }));
-    console.log('progress-updated event dispatched for card:', cardId);
   }
 
   // Force sync now
@@ -368,9 +340,90 @@ class SyncManager {
     await this.backgroundSync(userId);
   }
 
+  // Push progress then pull fresh data
+  async pushThenPull(userId: string): Promise<void> {
+    if (this.isSyncing) return;
+    
+    this.isSyncing = true;
+    
+    try {
+      // Dispatch syncing event
+      window.dispatchEvent(new CustomEvent('sync-started'));
+      
+      const data = this.loadLocalData(userId);
+      if (!data) {
+        // No local data, do full sync
+        await this.initialize(userId);
+        return;
+      }
+      
+      // Step 1: Push all pending progress to database
+      if (data.pendingProgress.length > 0) {
+        await this.syncPendingProgress(userId, data.pendingProgress);
+        data.pendingProgress = [];
+      }
+      
+      // Step 2: Pull fresh decks and cards from database
+      const [decks, dbProgress] = await Promise.all([
+        getDeckMetadata(userId),
+        getUserProgress(userId),
+      ]);
+      
+      // Update local data with fresh deck metadata
+      data.decks = decks;
+      
+      // Refresh all cards for all decks
+      const { getDeckCards } = await import('./database');
+      for (const deck of decks) {
+        const cards = await getDeckCards(deck.id, userId);
+        data.studyCards[deck.id] = cards;
+        deck.stats.total = cards.length;
+      }
+      
+      // Update progress with fresh database data
+      const progressObj: Record<string, any> = {};
+      dbProgress.forEach((prog, cardId) => {
+        progressObj[cardId] = {
+          state: prog.state,
+          difficulty: prog.difficulty,
+          stability: prog.stability,
+          due: prog.due.toISOString(),
+          elapsed_days: prog.elapsed_days,
+          scheduled_days: prog.scheduled_days,
+          reps: prog.reps,
+          lapses: prog.lapses,
+          last_review: prog.last_review?.toISOString(),
+        };
+      });
+      
+      data.progress = progressObj;
+      
+      // Update timestamps
+      const now = new Date();
+      data.lastSync = now.toISOString();
+      data.nextSyncTime = new Date(now.getTime() + this.SYNC_INTERVAL).toISOString();
+      
+      // Save updated data
+      this.saveLocalData(userId, data);
+      
+      // Schedule next sync
+      this.scheduleNextSync(userId);
+      
+      // Notify components
+      window.dispatchEvent(new CustomEvent('sync-completed'));
+      window.dispatchEvent(new CustomEvent('data-updated'));
+      
+    } catch (error) {
+      // Dispatch sync error event
+      window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
+      
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
   // Force full re-sync (clears local data and re-downloads everything)
   async forceFullSync(userId: string): Promise<void> {
-    console.log('Force full sync - clearing local data...');
     const key = this.getStorageKey(userId);
     localStorage.removeItem(key);
     this.isInitialized = false;

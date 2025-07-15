@@ -44,7 +44,6 @@ export default function StudyPage({ params }: StudyPageProps) {
             
             // Ensure data is initialized (wait for sync if needed)
             if (!localStorageService.isInitialized(user.id)) {
-                console.log('Data not initialized, starting sync...');
                 setIsSyncing(true);
                 await syncManager.initialize(user.id);
                 setIsSyncing(false);
@@ -62,11 +61,9 @@ export default function StudyPage({ params }: StudyPageProps) {
             
             // Get study cards from localStorage (only due cards)
             const cards = localStorageService.getStudyCards(deckId, user.id);
-            console.log(`Loaded ${cards.length} study cards for deck: ${deck.title}`);
             setStudyData(cards);
             
         } catch (err) {
-            console.error('Error loading study data:', err);
             setError('Failed to load study data');
         } finally {
             setIsLoading(false);
@@ -124,7 +121,6 @@ export default function StudyPage({ params }: StudyPageProps) {
 
     React.useEffect(() => {
         if (error) {
-            console.error('Error loading deck:', error);
             router.push('/');
         }
     }, [error, router]);
@@ -134,18 +130,11 @@ export default function StudyPage({ params }: StudyPageProps) {
 
         try {
             const currentCard = session.cards[session.currentIndex];
-            console.log('Rating card:', currentCard.id, 'with rating:', rating);
-            
             const updatedCard = reviewCard(currentCard, rating);
-            console.log('Updated card FSRS data:', updatedCard.fsrsData);
 
             // Save progress to localStorage (will sync to database automatically)
             if (user) {
-                console.log('Saving progress for card:', updatedCard.id);
                 syncManager.saveCardProgress(updatedCard.id, user.id, updatedCard.fsrsData);
-                console.log('Progress save completed');
-            } else {
-                console.log('No user - not saving progress');
             }
 
             const nextIndex = session.currentIndex + 1;
@@ -157,7 +146,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                 setSession({ ...session, currentIndex: nextIndex });
             }
         } catch (error) {
-            console.error('Error handling rating:', error);
+            // Error handling rating - continue with session
         }
     };
 
@@ -185,7 +174,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                 });
             }
         } catch (error) {
-            console.error('Error reloading study data:', error);
+            // Error reloading study data
         }
     };
 
