@@ -143,7 +143,7 @@ export default function RootLayout({
                                 <IOSChromeFixProvider />
                                 <NativeAppEnhancements />
                                 {children}
-                                {/* <PWAInstaller /> */}
+                                <PWAInstaller />
                             </ClientWrapper>
                         </AuthProvider>
                     </QueryProvider>
