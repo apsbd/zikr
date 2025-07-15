@@ -22,17 +22,17 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
   const studyCount = cardsForStudy.length;
 
   return (
-    <Card className="w-full max-w-md bg-gray-800 border-gray-700 hover:bg-gray-700 transition-colors">
+    <Card className="w-full max-w-md hover:bg-muted/50 transition-colors">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
+        <CardTitle className="flex items-center gap-2">
           <BookOpen className="w-5 h-5" />
           {deck.title}
         </CardTitle>
-        <CardDescription className="text-gray-300">by {deck.author}</CardDescription>
+        <CardDescription>by {deck.author}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <div className="flex justify-between text-sm text-gray-300">
+          <div className="flex justify-between text-sm text-muted-foreground">
             <span>Progress</span>
             <span>{Math.round(progressPercentage)}%</span>
           </div>
@@ -40,28 +40,28 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
         </div>
         
         <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center gap-2 text-gray-300">
-            <Zap className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Zap className="w-4 h-4 text-primary" />
             <span>New: {deck.stats.new}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-300">
-            <Clock className="w-4 h-4 text-orange-400" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Clock className="w-4 h-4 text-orange-500" />
             <span>Learning: {deck.stats.learning}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-300">
-            <RotateCcw className="w-4 h-4 text-green-400" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <RotateCcw className="w-4 h-4 text-green-500" />
             <span>Review: {deck.stats.review}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-300">
-            <BookOpen className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
             <span>Total: {deck.stats.total}</span>
           </div>
         </div>
         
         {/* Show due cards count if different from total state counts */}
         {studyCount !== (deck.stats.new + deck.stats.learning + deck.stats.review) && (
-          <div className="pt-2 border-t border-gray-700">
-            <div className="flex items-center gap-2 text-sm text-yellow-400">
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center gap-2 text-sm text-yellow-500">
               <Clock className="w-4 h-4" />
               <span>Due now: {studyCount}</span>
             </div>
@@ -72,19 +72,19 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
         <div className="space-y-2">
           {deck.nextReviewTime ? (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-400">Next review:</span>
+              <span className="text-sm text-muted-foreground">Next review:</span>
               <span className={`text-sm font-medium ${getTimeIndicatorClass(deck.nextReviewTime)}`}>
                 {formatNextReviewTime(deck.nextReviewTime)}
               </span>
             </div>
           ) : (
-            <div className="text-sm text-gray-400">No pending reviews</div>
+            <div className="text-sm text-muted-foreground">No pending reviews</div>
           )}
         </div>
 
         <Button 
           onClick={() => onStudy(deck.id)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          className="w-full"
           disabled={studyCount === 0}
         >
           {studyCount > 0

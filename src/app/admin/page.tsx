@@ -89,10 +89,10 @@ export default function AdminPanel() {
 
     if (!isAuthenticated) {
         return (
-            <div className='min-h-screen bg-gray-900 flex items-center justify-center p-4'>
-                <Card className='w-full max-w-md bg-gray-800 border-gray-700'>
+            <div className='min-h-screen bg-background flex items-center justify-center p-4'>
+                <Card className='w-full max-w-md'>
                     <CardHeader>
-                        <CardTitle className='text-white text-center'>
+                        <CardTitle className='text-center'>
                             Admin Login
                         </CardTitle>
                     </CardHeader>
@@ -102,12 +102,12 @@ export default function AdminPanel() {
                             placeholder='Enter admin password'
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className='w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400'
+                            className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground'
                             onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
                         />
                         <Button
                             onClick={handleAuth}
-                            className='w-full bg-blue-600 hover:bg-blue-700'>
+                            className='w-full'>
                             Login
                         </Button>
                     </CardContent>
@@ -118,7 +118,7 @@ export default function AdminPanel() {
 
     return (
         <ProtectedRoute>
-            <div className='min-h-screen bg-gray-900 p-4'>
+            <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-6xl mx-auto'>
                     <div className="mb-6">
                         <UserProfile />
@@ -126,15 +126,14 @@ export default function AdminPanel() {
                     
                     <header className='mb-8 flex justify-between items-start'>
                         <div>
-                            <h1 className='text-3xl font-bold text-white mb-2'>
+                            <h1 className='text-3xl font-bold mb-2'>
                                 Admin Panel
                             </h1>
-                            <p className='text-gray-300'>Manage decks and cards</p>
+                            <p className='text-muted-foreground'>Manage decks and cards</p>
                         </div>
                         <Button
                             onClick={handleLogout}
-                            variant='outline'
-                            className='border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white'>
+                            variant='outline'>
                             <LogOut className='w-4 h-4 mr-2' />
                             Logout
                         </Button>
@@ -142,8 +141,7 @@ export default function AdminPanel() {
 
                 <div className='mb-6'>
                     <Button
-                        onClick={handleCreateDeck}
-                        className='bg-green-600 hover:bg-green-700'>
+                        onClick={handleCreateDeck}>
                         <Plus className='w-4 h-4 mr-2' />
                         Create New Deck
                     </Button>
@@ -151,17 +149,15 @@ export default function AdminPanel() {
 
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
                     {decks.map((deck) => (
-                        <Card
-                            key={deck.id}
-                            className='bg-gray-800 border-gray-700'>
+                        <Card key={deck.id}>
                             <CardHeader>
-                                <CardTitle className='flex items-center gap-2 text-white'>
+                                <CardTitle className='flex items-center gap-2'>
                                     <BookOpen className='w-5 h-5' />
                                     {deck.title}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className='space-y-4'>
-                                <div className='text-sm text-gray-300'>
+                                <div className='text-sm text-muted-foreground'>
                                     <p>Cards: {deck.stats.total}</p>
                                     <p>Author: {deck.author}</p>
                                     <p>
@@ -179,7 +175,7 @@ export default function AdminPanel() {
                                         onClick={() =>
                                             (window.location.href = `/admin/edit/${deck.id}`)
                                         }
-                                        className='flex-1 border-gray-600 text-gray-300'>
+                                        className='flex-1'>
                                         <Edit className='w-4 h-4 mr-1' />
                                         Edit
                                     </Button>
@@ -201,7 +197,7 @@ export default function AdminPanel() {
 
                 {decks.length === 0 && (
                     <div className='text-center py-12'>
-                        <p className='text-gray-400'>
+                        <p className='text-muted-foreground'>
                             No decks found. Create your first deck!
                         </p>
                     </div>

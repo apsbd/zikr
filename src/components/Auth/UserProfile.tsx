@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function UserProfile() {
   const { user, signOut } = useAuth();
@@ -24,13 +25,16 @@ export default function UserProfile() {
           <p className="text-sm text-muted-foreground">Signed in as</p>
           <p className="font-medium text-foreground">{user.email}</p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleSignOut}
-        >
-          Sign Out
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSignOut}
+          >
+            Sign Out
+          </Button>
+        </div>
       </div>
     </Card>
   );

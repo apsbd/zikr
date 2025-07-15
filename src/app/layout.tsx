@@ -4,6 +4,7 @@ import "./globals.css";
 import PWAInstaller from "@/components/PWAInstaller";
 import { AuthProvider } from "@/contexts/auth";
 import ClientWrapper from "@/components/ClientWrapper";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="color-scheme" content="dark" />
@@ -84,14 +85,21 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <ClientWrapper>
-            {children}
-            <PWAInstaller />
-          </ClientWrapper>
-        </AuthProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          storageKey="theme"
+        >
+          <AuthProvider>
+            <ClientWrapper>
+              {children}
+              <PWAInstaller />
+            </ClientWrapper>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

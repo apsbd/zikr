@@ -124,13 +124,13 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
             <BackButton href="/" />
           </div>
           <div className="text-center py-12">
-            <p className="text-gray-400">Loading study session...</p>
+            <p className="text-muted-foreground">Loading study session...</p>
           </div>
         </div>
       </div>
@@ -139,13 +139,13 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   if (!deck) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
             <BackButton href="/" />
           </div>
           <div className="text-center py-12">
-            <p className="text-red-400">Deck not found</p>
+            <p className="text-destructive">Deck not found</p>
           </div>
         </div>
       </div>
@@ -154,19 +154,19 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   if (!session || session.cards.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
             <BackButton href="/" />
           </div>
-          <Card className="max-w-md mx-auto bg-gray-800 border-gray-700">
+          <Card className="max-w-md mx-auto">
             <CardContent className="p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2 text-white">No Cards Due</h2>
-              <p className="text-gray-300 mb-6">
+              <CheckCircle className="w-16 h-16 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">No Cards Due</h2>
+              <p className="text-muted-foreground mb-6">
                 All cards in this deck have been studied recently. Check back later for more reviews.
               </p>
-              <Button onClick={handleReturnToDashboard} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+              <Button onClick={handleReturnToDashboard} className="w-full">
                 Return to Dashboard
               </Button>
             </CardContent>
@@ -178,24 +178,24 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   if (session.completed) {
     return (
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
             <BackButton href="/" />
           </div>
-          <Card className="max-w-md mx-auto bg-gray-800 border-gray-700">
+          <Card className="max-w-md mx-auto">
             <CardContent className="p-8 text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2 text-white">Study Session Complete!</h2>
-              <p className="text-gray-300 mb-6">
+              <CheckCircle className="w-16 h-16 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Study Session Complete!</h2>
+              <p className="text-muted-foreground mb-6">
                 Great job! You've completed {session.cards.length} cards in this session.
               </p>
               <div className="space-y-3">
-                <Button onClick={handleStudyAgain} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={handleStudyAgain} className="w-full">
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Study More Cards
                 </Button>
-                <Button variant="outline" onClick={handleReturnToDashboard} className="w-full border-gray-600 text-gray-300 hover:bg-gray-700">
+                <Button variant="outline" onClick={handleReturnToDashboard} className="w-full">
                   Return to Dashboard
                 </Button>
               </div>
@@ -211,7 +211,7 @@ export default function StudyPage({ params }: StudyPageProps) {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-900 p-4">
+      <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-4">
             <BackButton href="/" />
@@ -219,8 +219,8 @@ export default function StudyPage({ params }: StudyPageProps) {
           
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-semibold text-white">{deck.title}</h2>
-              <span className="text-sm text-gray-400">
+              <h2 className="text-lg font-semibold">{deck.title}</h2>
+              <span className="text-sm text-muted-foreground">
                 {session.currentIndex + 1} of {session.cards.length}
               </span>
             </div>
