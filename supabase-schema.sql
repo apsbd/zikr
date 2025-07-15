@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS decks (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   author VARCHAR(255) NOT NULL,
+  daily_new_limit INTEGER DEFAULT 20,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

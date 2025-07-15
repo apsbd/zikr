@@ -85,6 +85,7 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
     title: dbDeck.title,
     description: dbDeck.description || '',
     author: dbDeck.author,
+    dailyNewLimit: dbDeck.daily_new_limit || 20,
     cards,
     stats: getCardStats(cards),
     createdAt: new Date(dbDeck.created_at),
@@ -182,6 +183,7 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       title: deck.title,
       description: deck.description,
       author: deck.author,
+      daily_new_limit: deck.dailyNewLimit,
       updated_at: new Date().toISOString(),
     };
 
@@ -409,6 +411,7 @@ export function getDeckDisplayInfo(deck: Deck): DeckDisplayInfo {
     title: deck.title,
     description: deck.description,
     author: deck.author,
+    dailyNewLimit: deck.dailyNewLimit,
     stats: deck.stats,
     nextReviewTime,
     nextReviewCount,

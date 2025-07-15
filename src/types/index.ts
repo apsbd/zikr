@@ -23,6 +23,7 @@ export interface Deck {
   title: string;
   description: string;
   author: string;
+  dailyNewLimit: number;
   cards: Card[];
   stats: {
     total: number;
@@ -39,6 +40,7 @@ export interface DeckDisplayInfo {
   title: string;
   description: string;
   author: string;
+  dailyNewLimit: number;
   stats: {
     total: number;
     new: number;

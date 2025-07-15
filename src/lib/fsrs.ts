@@ -48,9 +48,21 @@ export function reviewCard(card: Card, rating: AppRating): Card {
   };
 }
 
-export function getCardsForStudy(cards: Card[]): Card[] {
+export function getCardsForStudy(cards: Card[], dailyNewLimit: number = 20): Card[] {
   const now = new Date();
-  return cards.filter(card => card.fsrsData.due <= now);
+  
+  // Get all cards that are due for review
+  const dueCards = cards.filter(card => card.fsrsData.due <= now);
+  
+  // Separate new cards from review cards
+  const newCards = dueCards.filter(card => card.fsrsData.state === State.New);
+  const reviewCards = dueCards.filter(card => card.fsrsData.state !== State.New);
+  
+  // Limit new cards to the daily limit
+  const limitedNewCards = newCards.slice(0, dailyNewLimit);
+  
+  // Combine limited new cards with all review cards
+  return [...limitedNewCards, ...reviewCards];
 }
 
 export function getCardStats(cards: Card[]) {

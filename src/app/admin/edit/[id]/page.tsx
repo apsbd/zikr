@@ -50,11 +50,13 @@ export default function EditDeck() {
     const [deckMeta, setDeckMeta] = useState({
         title: '',
         author: '',
-        description: ''
+        description: '',
+        dailyNewLimit: 20
     });
     const [deckMetaErrors, setDeckMetaErrors] = useState({
         title: '',
-        author: ''
+        author: '',
+        dailyNewLimit: ''
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -101,7 +103,8 @@ export default function EditDeck() {
                         setDeckMeta({
                             title: savedDeck.title,
                             author: savedDeck.author,
-                            description: savedDeck.description
+                            description: savedDeck.description,
+                            dailyNewLimit: savedDeck.dailyNewLimit || 20
                         });
                     } else {
                         router.push('/admin');
@@ -118,7 +121,8 @@ export default function EditDeck() {
     const validateDeckMeta = () => {
         const newErrors = {
             title: '',
-            author: ''
+            author: '',
+            dailyNewLimit: ''
         };
 
         if (!deckMeta.title.trim()) {
@@ -127,9 +131,12 @@ export default function EditDeck() {
         if (!deckMeta.author.trim()) {
             newErrors.author = 'Author name is required';
         }
+        if (deckMeta.dailyNewLimit < 1 || deckMeta.dailyNewLimit > 999) {
+            newErrors.dailyNewLimit = 'Daily new limit must be between 1 and 999';
+        }
 
         setDeckMetaErrors(newErrors);
-        return !newErrors.title && !newErrors.author;
+        return !newErrors.title && !newErrors.author && !newErrors.dailyNewLimit;
     };
 
     const handleSaveDeck = async () => {
@@ -147,6 +154,7 @@ export default function EditDeck() {
             title: deckMeta.title.trim(),
             author: deckMeta.author.trim(),
             description: deckMeta.description.trim(),
+            dailyNewLimit: deckMeta.dailyNewLimit,
             stats: getCardStats(deck.cards),
             updatedAt: new Date()
         };
@@ -525,6 +533,50 @@ export default function EditDeck() {
                                         rows={3}
                                         className='w-full p-3 bg-input border border-border rounded-lg text-foreground placeholder-muted-foreground resize-none'
                                     />
+                                </div>
+                                <div>
+                                    <label className='text-sm text-muted-foreground mb-2 block'>
+                                        Daily New Cards Limit{' '}
+                                        <span className='text-destructive'>
+                                            *
+                                        </span>
+                                    </label>
+                                    <input
+                                        type='number'
+                                        min='1'
+                                        max='999'
+                                        value={deckMeta.dailyNewLimit}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value) || 1;
+                                            setDeckMeta({
+                                                ...deckMeta,
+                                                dailyNewLimit: value
+                                            });
+                                            if (
+                                                deckMetaErrors.dailyNewLimit &&
+                                                value >= 1 && value <= 999
+                                            ) {
+                                                setDeckMetaErrors({
+                                                    ...deckMetaErrors,
+                                                    dailyNewLimit: ''
+                                                });
+                                            }
+                                        }}
+                                        placeholder='20'
+                                        className={`w-full p-3 bg-input border rounded-lg text-foreground placeholder-muted-foreground ${
+                                            deckMetaErrors.dailyNewLimit
+                                                ? 'border-destructive'
+                                                : 'border-border'
+                                        }`}
+                                    />
+                                    {deckMetaErrors.dailyNewLimit && (
+                                        <p className='text-destructive text-sm mt-1'>
+                                            {deckMetaErrors.dailyNewLimit}
+                                        </p>
+                                    )}
+                                    <p className='text-xs text-muted-foreground mt-2'>
+                                        Maximum number of new cards that can be studied per day (1-999)
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>

@@ -11,9 +11,11 @@ interface StudyCardProps {
     card: CardType;
     onRate: (rating: Rating) => void;
     isLast: boolean;
+    currentIndex: number;
+    totalCards: number;
 }
 
-export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
+export function StudyCard({ card, onRate, isLast, currentIndex, totalCards }: StudyCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
     const [isFirstRender, setIsFirstRender] = useState(true);
     const [showFrontContent, setShowFrontContent] = useState(false);
@@ -89,22 +91,27 @@ export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
 
     return (
         <div className='w-full max-w-lg mx-auto'>
-            {/* Zoom Controls */}
-            <div className='flex justify-end gap-2 mb-4'>
-                <Button
-                    onClick={handleZoomOut}
-                    variant="outline"
-                    size="icon"
-                    title='Zoom Out'>
-                    <ZoomOut className='w-4 h-4' />
-                </Button>
-                <Button
-                    onClick={handleZoomIn}
-                    variant="outline"
-                    size="icon"
-                    title='Zoom In'>
-                    <ZoomIn className='w-4 h-4' />
-                </Button>
+            {/* Counter and Zoom Controls */}
+            <div className='flex justify-between items-center mb-4'>
+                <span className='text-sm text-muted-foreground'>
+                    {currentIndex + 1} of {totalCards}
+                </span>
+                <div className='flex gap-2'>
+                    <Button
+                        onClick={handleZoomOut}
+                        variant="outline"
+                        size="icon"
+                        title='Zoom Out'>
+                        <ZoomOut className='w-4 h-4' />
+                    </Button>
+                    <Button
+                        onClick={handleZoomIn}
+                        variant="outline"
+                        size="icon"
+                        title='Zoom In'>
+                        <ZoomIn className='w-4 h-4' />
+                    </Button>
+                </div>
             </div>
 
             <Card 
@@ -155,30 +162,30 @@ export function StudyCard({ card, onRate, isLast }: StudyCardProps) {
             </Card>
 
             {isFlipped && showBackContent && (
-                <div className='mt-8 grid grid-cols-4 gap-4'>
+                <div className='mt-4 grid grid-cols-4 gap-4'>
                     <Button
                         onClick={() => handleRate(Rating.Again)}
-                        className='h-auto p-4 flex flex-col items-center gap-2 bg-red-600 hover:bg-red-700 text-white'>
-                        <span className='text-2xl'>😰</span>
-                        Again
+                        className='h-auto p-3 flex flex-col items-center gap-1 bg-red-600 hover:bg-red-700 text-white'>
+                        <span className='text-xl'>😰</span>
+                        <span className='text-sm'>Again</span>
                     </Button>
                     <Button
                         onClick={() => handleRate(Rating.Hard)}
-                        className='h-auto p-4 flex flex-col items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white'>
-                        <span className='text-2xl'>😓</span>
-                        Hard
+                        className='h-auto p-3 flex flex-col items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white'>
+                        <span className='text-xl'>😓</span>
+                        <span className='text-sm'>Hard</span>
                     </Button>
                     <Button
                         onClick={() => handleRate(Rating.Good)}
-                        className='h-auto p-4 flex flex-col items-center gap-2 bg-green-600 hover:bg-green-700 text-white'>
-                        <span className='text-2xl'>😊</span>
-                        Good
+                        className='h-auto p-3 flex flex-col items-center gap-1 bg-green-600 hover:bg-green-700 text-white'>
+                        <span className='text-xl'>😊</span>
+                        <span className='text-sm'>Good</span>
                     </Button>
                     <Button
                         onClick={() => handleRate(Rating.Easy)}
-                        className='h-auto p-4 flex flex-col items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white'>
-                        <span className='text-2xl'>🤩</span>
-                        Easy
+                        className='h-auto p-3 flex flex-col items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white'>
+                        <span className='text-xl'>🤩</span>
+                        <span className='text-sm'>Easy</span>
                     </Button>
                 </div>
             )}

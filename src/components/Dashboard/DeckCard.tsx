@@ -25,7 +25,7 @@ export function DeckCard({ deck, onStudy }: DeckCardProps) {
             ? ((deck.stats.total - deck.stats.new) / deck.stats.total) * 100
             : 0;
 
-    const cardsForStudy = getCardsForStudy(deck.cards);
+    const cardsForStudy = getCardsForStudy(deck.cards, deck.dailyNewLimit);
     const studyCount = cardsForStudy.length;
 
     return (

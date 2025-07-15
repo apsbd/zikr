@@ -7,6 +7,7 @@ export interface Database {
           title: string;
           description: string | null;
           author: string;
+          daily_new_limit: number;
           user_id: string | null;
           created_at: string;
           updated_at: string;
@@ -16,6 +17,7 @@ export interface Database {
           title: string;
           description?: string | null;
           author: string;
+          daily_new_limit?: number;
           user_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -25,6 +27,7 @@ export interface Database {
           title?: string;
           description?: string | null;
           author?: string;
+          daily_new_limit?: number;
           user_id?: string | null;
           created_at?: string;
           updated_at?: string;
