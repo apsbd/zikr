@@ -138,3 +138,14 @@ export function useDeleteDeckMutation() {
         },
     });
 }
+
+export function useUpdatePasswordMutation() {
+    const { updatePassword } = useAuth();
+    
+    return useMutation({
+        mutationFn: (newPassword: string) => updatePassword(newPassword),
+        onSuccess: () => {
+            // Password update successful - no additional invalidation needed
+        },
+    });
+}

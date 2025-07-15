@@ -3,12 +3,14 @@
 import { useAuth } from '@/contexts/auth';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LogOut, User, ChevronDown } from 'lucide-react';
+import { LogOut, User, ChevronDown, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import UserSettings from './UserSettings';
 
 export default function UserProfile() {
     const { user, signOut } = useAuth();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const handleSignOut = async () => {
@@ -39,6 +41,7 @@ export default function UserProfile() {
     if (!user) return null;
 
     return (
+        <>
         <header className='w-full bg-background border-b border-border/50'>
             <div className='max-w-7xl mx-auto px-4 py-4'>
                 <div className='flex items-center justify-between'>
@@ -95,6 +98,19 @@ export default function UserProfile() {
                                         </p>
                                     </div>
 
+                                    {/* Settings button in dropdown */}
+                                    <Button
+                                        variant='ghost'
+                                        size='sm'
+                                        onClick={() => {
+                                            setShowSettings(true);
+                                            setIsDropdownOpen(false);
+                                        }}
+                                        className='w-full flex items-center gap-2 justify-start mb-2'>
+                                        <Settings className='w-4 h-4' />
+                                        Settings
+                                    </Button>
+
                                     {/* Sign out button in dropdown */}
                                     <Button
                                         variant='ghost'
@@ -107,6 +123,16 @@ export default function UserProfile() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Desktop settings button */}
+                        <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={() => setShowSettings(true)}
+                            className='hidden sm:flex items-center gap-2'>
+                            <Settings className='w-4 h-4' />
+                            Settings
+                        </Button>
 
                         {/* Desktop sign out button */}
                         <Button
@@ -121,5 +147,11 @@ export default function UserProfile() {
                 </div>
             </div>
         </header>
+        
+        {/* Settings Modal */}
+        {showSettings && (
+            <UserSettings onClose={() => setShowSettings(false)} />
+        )}
+        </>
     );
 }

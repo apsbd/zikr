@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/auth';
 import ClientWrapper from '@/components/ClientWrapper';
 import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/contexts/query';
+import NativeAppEnhancements from '@/components/NativeAppEnhancements';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -67,7 +68,7 @@ export default function RootLayout({
             <head>
                 <meta
                     name='viewport'
-                    content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+                    content='width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover'
                 />
                 <meta name='color-scheme' content='dark' />
                 <meta name='theme-color' content='#09090b' />
@@ -82,6 +83,10 @@ export default function RootLayout({
                 <meta name='apple-mobile-web-app-title' content='Zikr' />
                 <meta name='msapplication-TileColor' content='#09090b' />
                 <meta name='msapplication-tap-highlight' content='no' />
+                
+                {/* Prevent pull-to-refresh */}
+                <meta name='overscroll-behavior' content='none' />
+                <meta name='format-detection' content='telephone=no' />
 
                 {/* Manifest */}
                 <link rel='manifest' href='/manifest.json' />
@@ -134,6 +139,7 @@ export default function RootLayout({
                     <QueryProvider>
                         <AuthProvider>
                             <ClientWrapper>
+                                <NativeAppEnhancements />
                                 {children}
                                 <PWAInstaller />
                             </ClientWrapper>

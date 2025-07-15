@@ -75,14 +75,26 @@
   border-color: var(--color-border);
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  transition: background-color 0.3s, color 0.3s;
-}
+/* Body styling moved to bottom of file for native app behavior */
 
 html {
   color-scheme: light dark;
+  /* Prevent zoom and elastic scrolling for native app feel */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Prevent elastic scrolling (rubber band effect) */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+  /* Prevent text size adjust on orientation change */
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Arabic text styling for proper diacritics display */
@@ -117,4 +129,133 @@ html {
   -moz-osx-font-smoothing: grayscale;
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
+}
+
+/* Native app behavior enhancements */
+* {
+  /* Prevent zoom on double tap */
+  touch-action: manipulation;
+  /* Prevent callout on long press */
+  -webkit-touch-callout: none;
+  /* Prevent highlight on tap */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection for inputs and textareas */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Prevent zoom on input focus (iOS specific) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea {
+  font-size: 16px; /* Prevents zoom on iOS */
+  touch-action: manipulation;
+}
+
+/* Prevent elastic scrolling on main containers */
+.min-h-screen, .h-screen, .h-full {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+/* Prevent pull-to-refresh specifically */
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  transition: background-color 0.3s, color 0.3s;
+  /* Prevent elastic scrolling and zoom behaviors */
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+  /* Prevent text selection for native app feel */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Prevent highlight on tap */
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent pull-to-refresh */
+  overscroll-behavior-y: contain;
+  /* Fixed positioning for native app feel */
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+#__next {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+/* Smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent text size adjustment on orientation change */
+@media screen and (orientation: portrait) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Ensure buttons and interactive elements work properly */
+button, [role="button"], .cursor-pointer {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Allow text selection for specific content areas */
+p, span, .text-content, .selectable-text {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Prevent zoom on specific elements that might trigger it */
+.prevent-zoom {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Ensure study card interactions work smoothly */
+.study-card, .card-flip {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text size adjustment on specific elements */
+.text-fixed-size {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
