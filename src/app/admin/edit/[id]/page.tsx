@@ -884,7 +884,7 @@ export default function EditDeck() {
                                         ) : (
                                             <div className='flex items-center justify-between'>
                                                 <div className='flex-1'>
-                                                    <div className='text-foreground font-medium mb-1 arabic-text'>
+                                                    <div className='text-foreground font-medium mb-1 arabic-text-list'>
                                                         {highlightSearchTerm(
                                                             card.front,
                                                             searchQuery
