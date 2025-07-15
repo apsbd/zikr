@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StudyCard } from '@/components/StudyCard/StudyCard';
 import { BackButton } from '@/components/Navigation/BackButton';
@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
-import { getDeckById, saveCardProgress } from '@/lib/database';
+import { useDeck, useCardProgressMutation } from '@/hooks/queries';
 import { reviewCard, getCardsForStudy, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
@@ -21,45 +21,44 @@ interface StudyPageProps {
 }
 
 export default function StudyPage({ params }: StudyPageProps) {
-  const [deck, setDeck] = useState<Deck | null>(null);
+  const [deckId, setDeckId] = useState<string | undefined>();
   const [session, setSession] = useState<StudySession | null>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { user } = useAuth();
+  
+  const cardProgressMutation = useCardProgressMutation();
+  const { data: deck, isLoading, error } = useDeck(deckId);
 
-  useEffect(() => {
-    const loadDeck = async () => {
-      try {
-        const resolvedParams = await params;
-        const foundDeck = await getDeckById(resolvedParams.deckId, user?.id);
-        if (!foundDeck) {
-          router.push('/');
-          return;
-        }
+  React.useEffect(() => {
+    params.then(resolvedParams => {
+      setDeckId(resolvedParams.deckId);
+    });
+  }, [params]);
 
-        setDeck(foundDeck);
-        const cardsToStudy = getCardsForStudy(foundDeck.cards);
-        
-        if (cardsToStudy.length === 0) {
-          setLoading(false);
-          return;
-        }
-
-        setSession({
-          deckId: foundDeck.id,
-          cards: cardsToStudy,
-          currentIndex: 0,
-          completed: false,
-        });
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading deck:', error);
-        router.push('/');
+  React.useEffect(() => {
+    if (deck) {
+      const cardsToStudy = getCardsForStudy(deck.cards);
+      
+      if (cardsToStudy.length === 0) {
+        setSession(null);
+        return;
       }
-    };
 
-    loadDeck();
-  }, [params, router]);
+      setSession({
+        deckId: deck.id,
+        cards: cardsToStudy,
+        currentIndex: 0,
+        completed: false,
+      });
+    }
+  }, [deck]);
+
+  React.useEffect(() => {
+    if (error) {
+      console.error('Error loading deck:', error);
+      router.push('/');
+    }
+  }, [error, router]);
 
   const handleRating = async (rating: Rating) => {
     if (!session || !deck) return;
@@ -68,21 +67,11 @@ export default function StudyPage({ params }: StudyPageProps) {
       const currentCard = session.cards[session.currentIndex];
       const updatedCard = reviewCard(currentCard, rating);
       
-      // Save progress to database
-      await saveCardProgress(updatedCard.id, updatedCard.fsrsData, user?.id);
-      
-      // Update deck state with new card progress
-      const updatedCards = deck.cards.map(card => 
-        card.id === updatedCard.id ? updatedCard : card
-      );
-
-      const updatedDeck = {
-        ...deck,
-        cards: updatedCards,
-        stats: getCardStats(updatedCards),
-      };
-
-      setDeck(updatedDeck);
+      // Save progress to database with optimistic update
+      cardProgressMutation.mutate({
+        cardId: updatedCard.id,
+        fsrsData: updatedCard.fsrsData
+      });
 
       const nextIndex = session.currentIndex + 1;
       if (nextIndex >= session.cards.length) {
@@ -99,30 +88,21 @@ export default function StudyPage({ params }: StudyPageProps) {
     router.push('/');
   };
 
-  const handleStudyAgain = async () => {
+  const handleStudyAgain = () => {
     if (!deck) return;
     
-    try {
-      // Reload deck to get fresh data with updated progress
-      const freshDeck = await getDeckById(deck.id, user?.id);
-      if (!freshDeck) return;
-      
-      setDeck(freshDeck);
-      const cardsToStudy = getCardsForStudy(freshDeck.cards);
-      if (cardsToStudy.length > 0) {
-        setSession({
-          deckId: freshDeck.id,
-          cards: cardsToStudy,
-          currentIndex: 0,
-          completed: false,
-        });
-      }
-    } catch (error) {
-      console.error('Error reloading deck:', error);
+    const cardsToStudy = getCardsForStudy(deck.cards);
+    if (cardsToStudy.length > 0) {
+      setSession({
+        deckId: deck.id,
+        cards: cardsToStudy,
+        currentIndex: 0,
+        completed: false,
+      });
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-4">
         <div className="max-w-2xl mx-auto">

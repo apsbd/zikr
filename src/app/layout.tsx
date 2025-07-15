@@ -5,6 +5,7 @@ import PWAInstaller from '@/components/PWAInstaller';
 import { AuthProvider } from '@/contexts/auth';
 import ClientWrapper from '@/components/ClientWrapper';
 import { ThemeProvider } from '@/components/theme-provider';
+import { QueryProvider } from '@/contexts/query';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -130,12 +131,14 @@ export default function RootLayout({
                     defaultTheme='dark'
                     enableSystem={false}
                     storageKey='theme'>
-                    <AuthProvider>
-                        <ClientWrapper>
-                            {children}
-                            <PWAInstaller />
-                        </ClientWrapper>
-                    </AuthProvider>
+                    <QueryProvider>
+                        <AuthProvider>
+                            <ClientWrapper>
+                                {children}
+                                <PWAInstaller />
+                            </ClientWrapper>
+                        </AuthProvider>
+                    </QueryProvider>
                 </ThemeProvider>
             </body>
         </html>

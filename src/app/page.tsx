@@ -1,58 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
-import { getDecks, getDeckDisplayInfo } from '@/lib/database';
+import { useDeckDisplay } from '@/hooks/queries';
 import { cleanupOldLocalStorageData } from '@/lib/migration';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import { useAuth } from '@/contexts/auth';
 
 export default function Home() {
-    const [decks, setDecks] = useState<Deck[]>([]);
-    const [displayDecks, setDisplayDecks] = useState<DeckDisplayInfo[]>([]);
-    const [lastUpdate, setLastUpdate] = useState(Date.now());
     const router = useRouter();
     const { user } = useAuth();
-
-    const loadDecks = async () => {
-        try {
-            const savedDecks = await getDecks(user?.id);
-            setDecks(savedDecks);
-            const displayInfo = savedDecks.map((deck) =>
-                getDeckDisplayInfo(deck)
-            );
-            setDisplayDecks(displayInfo);
-            setLastUpdate(Date.now());
-        } catch (error) {
-            console.error('Error loading decks:', error);
-        }
-    };
+    const { data: displayDecks = [], isLoading, error } = useDeckDisplay();
 
     useEffect(() => {
         // Clean up old localStorage data on first load
         cleanupOldLocalStorageData();
     }, []);
 
-    // Load decks when user is available
     useEffect(() => {
-        if (user) {
-            loadDecks();
+        if (error) {
+            console.error('Error loading decks:', error);
         }
-    }, [user]);
-
-    // Auto-refresh mechanism
-    useEffect(() => {
-        if (user) {
-            const interval = setInterval(() => {
-                loadDecks();
-            }, 60000); // Check every minute
-
-            return () => clearInterval(interval);
-        }
-    }, [user]);
+    }, [error]);
 
     const handleStudy = (deckId: string) => {
         router.push(`/study/${deckId}`);
@@ -74,10 +46,18 @@ export default function Home() {
                         ))}
                     </div>
 
-                    {displayDecks.length === 0 && (
+                    {isLoading && (
                         <div className='text-center py-12'>
                             <p className='text-muted-foreground'>
                                 Loading decks...
+                            </p>
+                        </div>
+                    )}
+                    
+                    {!isLoading && displayDecks.length === 0 && (
+                        <div className='text-center py-12'>
+                            <p className='text-muted-foreground'>
+                                No decks available
                             </p>
                         </div>
                     )}
