@@ -5,17 +5,20 @@ import { useAuth } from '@/contexts/auth';
 import { 
     getDecks, 
     getDeckById, 
+    getDeckMetadata,
+    getStudyCards,
     saveCardProgress, 
     saveDeck, 
-    deleteDeck, 
-    getDeckDisplayInfo 
+    deleteDeck 
 } from '@/lib/database';
+import { getDeckDisplayInfo } from '@/lib/data';
 import { Deck, Card } from '@/types';
 
 export const QUERY_KEYS = {
     DECKS: 'decks',
     DECK: 'deck',
     DECK_DISPLAY: 'deck-display',
+    STUDY_CARDS: 'study-cards',
 } as const;
 
 export function useDecks() {
@@ -72,7 +75,7 @@ export function useCardProgressMutation() {
                 queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
             });
             
-            // Don't invalidate deck queries immediately - let them use cache
+            // Don't invalidate study card queries immediately - let them use cache
             // This prevents disrupting active study sessions
         },
     });
@@ -98,7 +101,7 @@ export function useStudySessionCompleteMutation() {
             queryClient.invalidateQueries({
                 predicate: (query) => {
                     const [key] = query.queryKey;
-                    return key === QUERY_KEYS.DECK;
+                    return key === QUERY_KEYS.DECK || key === QUERY_KEYS.STUDY_CARDS;
                 }
             });
         },
@@ -136,6 +139,18 @@ export function useDeleteDeckMutation() {
                 queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
             });
         },
+    });
+}
+
+export function useStudyCards(deckId: string | undefined) {
+    const { user } = useAuth();
+    
+    return useQuery({
+        queryKey: [QUERY_KEYS.STUDY_CARDS, deckId, user?.id],
+        queryFn: () => getStudyCards(deckId!, user?.id),
+        enabled: !!deckId && !!user,
+        staleTime: 1 * 60 * 1000, // 1 minute
+        refetchOnWindowFocus: false,
     });
 }
 

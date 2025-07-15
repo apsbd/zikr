@@ -9,6 +9,8 @@ export interface Database {
           author: string;
           daily_new_limit: number;
           user_id: string | null;
+          group_access_enabled: boolean;
+          is_public: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -19,6 +21,8 @@ export interface Database {
           author: string;
           daily_new_limit?: number;
           user_id?: string | null;
+          group_access_enabled?: boolean;
+          is_public?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -29,6 +33,8 @@ export interface Database {
           author?: string;
           daily_new_limit?: number;
           user_id?: string | null;
+          group_access_enabled?: boolean;
+          is_public?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -111,6 +117,35 @@ export interface Database {
           reps?: number;
           lapses?: number;
           last_review?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      deck_user_access: {
+        Row: {
+          id: string;
+          deck_id: string;
+          user_id: string;
+          granted_by: string;
+          granted_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          deck_id: string;
+          user_id: string;
+          granted_by: string;
+          granted_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          deck_id?: string;
+          user_id?: string;
+          granted_by?: string;
+          granted_at?: string;
           created_at?: string;
           updated_at?: string;
         };

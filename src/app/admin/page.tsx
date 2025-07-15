@@ -130,6 +130,8 @@ ${allLogs}
             description: 'A new deck for studying',
             author: 'Admin',
             dailyNewLimit: 20,
+            groupAccessEnabled: false,
+            isPublic: true,
             cards: [],
             stats: { total: 0, new: 0, learning: 0, review: 0 },
             createdAt: new Date(),

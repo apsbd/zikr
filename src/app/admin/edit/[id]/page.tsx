@@ -20,12 +20,15 @@ import {
     Save,
     Upload,
     Search,
-    X
+    X,
+    Users,
+    Loader2
 } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import { useAuth } from '@/contexts/auth';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import UserSelection from '@/components/Admin/UserSelection';
 
 export default function EditDeck() {
     const router = useRouter();
@@ -51,7 +54,9 @@ export default function EditDeck() {
         title: '',
         author: '',
         description: '',
-        dailyNewLimit: 20
+        dailyNewLimit: 20,
+        groupAccessEnabled: false,
+        isPublic: true
     });
     const [deckMetaErrors, setDeckMetaErrors] = useState({
         title: '',
@@ -64,6 +69,8 @@ export default function EditDeck() {
         type: 'success' | 'error';
         text: string;
     } | null>(null);
+    const [showUserSelection, setShowUserSelection] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         // Wait for auth to load before checking
@@ -104,7 +111,9 @@ export default function EditDeck() {
                             title: savedDeck.title,
                             author: savedDeck.author,
                             description: savedDeck.description,
-                            dailyNewLimit: savedDeck.dailyNewLimit || 20
+                            dailyNewLimit: savedDeck.dailyNewLimit || 20,
+                            groupAccessEnabled: savedDeck.groupAccessEnabled || false,
+                            isPublic: savedDeck.isPublic ?? true
                         });
                     } else {
                         router.push('/admin');
@@ -146,32 +155,45 @@ export default function EditDeck() {
             return;
         }
 
-        // Clear previous messages
+        // Clear previous messages and start loading
         setSaveMessage(null);
+        setIsSaving(true);
 
-        const updatedDeck = {
-            ...deck,
-            title: deckMeta.title.trim(),
-            author: deckMeta.author.trim(),
-            description: deckMeta.description.trim(),
-            dailyNewLimit: deckMeta.dailyNewLimit,
-            stats: getCardStats(deck.cards),
-            updatedAt: new Date()
-        };
+        try {
+            const updatedDeck = {
+                ...deck,
+                title: deckMeta.title.trim(),
+                author: deckMeta.author.trim(),
+                description: deckMeta.description.trim(),
+                dailyNewLimit: deckMeta.dailyNewLimit,
+                groupAccessEnabled: deckMeta.groupAccessEnabled,
+                isPublic: deckMeta.isPublic,
+                stats: getCardStats(deck.cards),
+                updatedAt: new Date()
+            };
 
-        const success = await saveDeck(updatedDeck);
-        if (success) {
-            setSaveMessage({
-                type: 'success',
-                text: 'Deck saved successfully!'
-            });
-            // Auto-clear success message after 3 seconds
-            setTimeout(() => setSaveMessage(null), 3000);
-        } else {
+            const success = await saveDeck(updatedDeck);
+            if (success) {
+                setSaveMessage({
+                    type: 'success',
+                    text: 'Deck saved successfully!'
+                });
+                // Auto-clear success message after 3 seconds
+                setTimeout(() => setSaveMessage(null), 3000);
+            } else {
+                setSaveMessage({
+                    type: 'error',
+                    text: 'Error saving deck. Please try again.'
+                });
+            }
+        } catch (error) {
+            console.error('Error saving deck:', error);
             setSaveMessage({
                 type: 'error',
                 text: 'Error saving deck. Please try again.'
             });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -578,6 +600,83 @@ export default function EditDeck() {
                                         Maximum number of new cards that can be studied per day (1-999)
                                     </p>
                                 </div>
+
+                                {/* Group Access Toggle */}
+                                <div className='space-y-4'>
+                                    <div className='flex items-center justify-between'>
+                                        <div>
+                                            <label className='text-sm font-medium text-foreground'>
+                                                Group Access Control
+                                            </label>
+                                            <p className='text-xs text-muted-foreground mt-1'>
+                                                When enabled, only selected users can access this deck
+                                            </p>
+                                        </div>
+                                        <label className='relative inline-flex items-center cursor-pointer'>
+                                            <input
+                                                type='checkbox'
+                                                checked={deckMeta.groupAccessEnabled}
+                                                onChange={(e) => {
+                                                    setDeckMeta({
+                                                        ...deckMeta,
+                                                        groupAccessEnabled: e.target.checked,
+                                                        isPublic: !e.target.checked
+                                                    });
+                                                }}
+                                                className='sr-only'
+                                            />
+                                            <div className={`w-11 h-6 rounded-full shadow-inner transition-colors ${
+                                                deckMeta.groupAccessEnabled 
+                                                    ? 'bg-primary' 
+                                                    : 'bg-gray-300 dark:bg-gray-600'
+                                            }`}>
+                                                <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform ${
+                                                    deckMeta.groupAccessEnabled 
+                                                        ? 'translate-x-6' 
+                                                        : 'translate-x-1'
+                                                } mt-1`}></div>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    {/* Access Status Indicator */}
+                                    <div className={`p-3 rounded-lg border ${
+                                        deckMeta.groupAccessEnabled 
+                                            ? 'bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400'
+                                            : 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400'
+                                    }`}>
+                                        <div className='flex items-center gap-2'>
+                                            <div className={`w-2 h-2 rounded-full ${
+                                                deckMeta.groupAccessEnabled 
+                                                    ? 'bg-orange-500' 
+                                                    : 'bg-green-500'
+                                            }`}></div>
+                                            <span className='text-sm font-medium'>
+                                                {deckMeta.groupAccessEnabled 
+                                                    ? 'Restricted Access - Only selected users can access'
+                                                    : 'Public Access - All users can access this deck'
+                                                }
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* User Selection Button */}
+                                    {deckMeta.groupAccessEnabled && (
+                                        <div className='pt-4 border-t'>
+                                            <Button
+                                                onClick={() => setShowUserSelection(true)}
+                                                variant='outline'
+                                                className='w-full'
+                                            >
+                                                <Users className='w-4 h-4 mr-2' />
+                                                Manage User Access
+                                            </Button>
+                                            <p className='text-xs text-muted-foreground mt-2 text-center'>
+                                                Select which users can access this deck
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </CardContent>
                         </Card>
 
@@ -588,9 +687,13 @@ export default function EditDeck() {
                                 <Upload className='w-4 h-4 mr-2' />
                                 Upload CSV
                             </Button>
-                            <Button onClick={handleSaveDeck}>
-                                <Save className='w-4 h-4 mr-2' />
-                                Save Deck
+                            <Button onClick={handleSaveDeck} disabled={isSaving}>
+                                {isSaving ? (
+                                    <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                                ) : (
+                                    <Save className='w-4 h-4 mr-2' />
+                                )}
+                                {isSaving ? 'Saving...' : 'Save Deck'}
                             </Button>
                         </div>
 
@@ -1005,6 +1108,15 @@ export default function EditDeck() {
                     </div>
                 </div>
             </ScrollArea>
+
+            {/* User Selection Modal */}
+            {showUserSelection && user && (
+                <UserSelection
+                    deckId={deckId}
+                    currentUserId={user.id}
+                    onClose={() => setShowUserSelection(false)}
+                />
+            )}
         </ProtectedRoute>
     );
 }

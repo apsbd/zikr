@@ -24,6 +24,8 @@ export interface Deck {
   description: string;
   author: string;
   dailyNewLimit: number;
+  groupAccessEnabled: boolean;
+  isPublic: boolean;
   cards: Card[];
   stats: {
     total: number;
@@ -41,6 +43,8 @@ export interface DeckDisplayInfo {
   description: string;
   author: string;
   dailyNewLimit: number;
+  groupAccessEnabled: boolean;
+  isPublic: boolean;
   stats: {
     total: number;
     new: number;
@@ -64,4 +68,23 @@ export enum Rating {
   Hard = 2,
   Good = 3,
   Easy = 4,
+}
+
+export interface DeckUserAccess {
+  id: string;
+  deckId: string;
+  userId: string;
+  grantedBy: string;
+  grantedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserSelectionItem {
+  id: string;
+  userId: string;
+  email: string;
+  role: 'user' | 'admin' | 'superuser';
+  hasAccess: boolean;
+  createdAt: Date;
 }

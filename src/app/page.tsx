@@ -22,6 +22,7 @@ function Dashboard() {
         }
     }, [error]);
 
+
     const handleStudy = (deckId: string) => {
         router.push(`/study/${deckId}`);
     };

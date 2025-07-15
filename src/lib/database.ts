@@ -1,6 +1,6 @@
 import { supabase, type DbDeck, type DbCard } from './supabase';
 import { initializeFSRSCard, getCardStats } from './fsrs';
-import type { Deck, Card, DeckDisplayInfo } from '@/types';
+import type { Deck, Card, DeckDisplayInfo, DeckUserAccess, UserSelectionItem } from '@/types';
 import type { Database } from '@/types/database';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
@@ -86,6 +86,8 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
     description: dbDeck.description || '',
     author: dbDeck.author,
     dailyNewLimit: dbDeck.daily_new_limit || 20,
+    groupAccessEnabled: (dbDeck as any).group_access_enabled ?? false,
+    isPublic: (dbDeck as any).is_public ?? true,
     cards,
     stats: getCardStats(cards),
     createdAt: new Date(dbDeck.created_at),
@@ -93,7 +95,119 @@ async function dbDeckToAppDeck(dbDeck: DbDeck, dbCards: DbCard[], userId?: strin
   };
 }
 
-// Get all decks from Supabase
+// Get deck metadata only (without cards) for dashboard
+export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[]> {
+  try {
+    // Fetch decks
+    const { data: decks, error: decksError } = await supabase
+      .from('decks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (decksError) {
+      console.error('Error fetching decks:', decksError);
+      return [];
+    }
+    
+    console.log('getDeckMetadata: Found decks:', decks?.length || 0);
+    
+    if (!decks || decks.length === 0) {
+      console.log('getDeckMetadata: No decks found');
+      return [];
+    }
+
+    // For now, disable access control to fix loading issue
+    // TODO: Re-enable once database schema is updated
+    const accessibleDecks = decks;
+
+    // Get card counts for each deck (much faster than loading all cards)
+    const deckMetadata: DeckDisplayInfo[] = await Promise.all(
+      accessibleDecks.map(async (deck) => {
+        // Get basic card stats without loading all card content
+        const { count: totalCards, error: countError } = await supabase
+          .from('cards')
+          .select('*', { count: 'exact', head: true })
+          .eq('deck_id', deck.id);
+
+        if (countError) {
+          console.error('Error fetching card count:', countError);
+        }
+
+        // Get user progress stats if userId is provided
+        let newCards = 0;
+        let reviewCards = 0;
+        let learningCards = 0;
+
+        if (userId) {
+          // First get card IDs for this deck
+          const { data: cardIds, error: cardIdsError } = await supabase
+            .from('cards')
+            .select('id')
+            .eq('deck_id', deck.id);
+          
+          if (cardIdsError) {
+            console.error('Error fetching card IDs:', cardIdsError);
+          } else if (cardIds && cardIds.length > 0) {
+            // Get user progress for this deck
+            const { data: progressData, error: progressError } = await supabase
+              .from('user_progress')
+              .select('state')
+              .eq('user_id', userId)
+              .in('card_id', cardIds.map(card => card.id));
+
+            if (!progressError && progressData) {
+              // Count cards by state (0 = New, 1 = Learning, 2 = Review, 3 = Relearning)
+              progressData.forEach(progress => {
+                switch (progress.state) {
+                  case 0:
+                    newCards++;
+                    break;
+                  case 1:
+                  case 3:
+                    learningCards++;
+                    break;
+                  case 2:
+                    reviewCards++;
+                    break;
+                }
+              });
+            }
+          }
+        }
+
+        // New cards = total cards - cards with progress
+        const progressedCards = newCards + learningCards + reviewCards;
+        newCards = (totalCards || 0) - progressedCards;
+
+        return {
+          id: deck.id,
+          title: deck.title,
+          description: deck.description || '',
+          author: deck.author,
+          dailyNewLimit: deck.daily_new_limit || 20,
+          groupAccessEnabled: (deck as any).group_access_enabled ?? false,
+          isPublic: (deck as any).is_public ?? true,
+          stats: {
+            total: totalCards || 0,
+            new: newCards,
+            learning: learningCards,
+            review: reviewCards,
+          },
+          nextReviewTime: null, // Will be calculated when needed
+          nextReviewCount: 0,
+          cards: [], // Empty - cards loaded on demand
+        };
+      })
+    );
+
+    return deckMetadata;
+  } catch (error) {
+    console.error('Error in getDeckMetadata:', error);
+    return [];
+  }
+}
+
+// Get all decks from Supabase with access control (with cards - for backwards compatibility)
 export async function getDecks(userId?: string): Promise<Deck[]> {
   try {
     // Fetch decks
@@ -118,8 +232,30 @@ export async function getDecks(userId?: string): Promise<Deck[]> {
       return [];
     }
 
+    // For now, disable access control to fix loading issue
+    // TODO: Re-enable once database schema is updated
+    const accessibleDecks = decks;
+    
+    // Filter decks based on access control (commented out until DB is updated)
+    // let accessibleDecks = decks;
+    
+    // if (userId) {
+    //   // Check if user is admin - admins see all decks
+    //   const isAdmin = await isUserAdmin(userId);
+      
+    //   if (!isAdmin) {
+    //     // Filter decks for regular users
+    //     accessibleDecks = await Promise.all(
+    //       decks.map(async deck => {
+    //         const hasAccess = await checkDeckAccess(deck.id, userId);
+    //         return hasAccess ? deck : null;
+    //       })
+    //     ).then(results => results.filter(deck => deck !== null));
+    //   }
+    // }
+
     // Group cards by deck_id and convert to app format
-    const decksWithCards: Deck[] = await Promise.all(decks.map(async deck => {
+    const decksWithCards: Deck[] = await Promise.all(accessibleDecks.map(async deck => {
       const deckCards = cards.filter(card => card.deck_id === deck.id);
       return await dbDeckToAppDeck(deck, deckCards, userId);
     }));
@@ -131,7 +267,200 @@ export async function getDecks(userId?: string): Promise<Deck[]> {
   }
 }
 
-// Get a specific deck by ID
+// Get cards for a specific deck (for lazy loading)
+export async function getDeckCards(deckId: string, userId?: string): Promise<Card[]> {
+  try {
+    // Fetch cards for this deck
+    const { data: cards, error: cardsError } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('created_at', { ascending: true });
+
+    if (cardsError) {
+      console.error('Error fetching cards:', cardsError);
+      return [];
+    }
+
+    // Convert to app format with user progress
+    const appCards: Card[] = await Promise.all((cards || []).map(async dbCard => {
+      let fsrsData;
+      
+      if (userId) {
+        // Get user progress from database
+        const { data: progressArray, error } = await supabase
+          .from('user_progress')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('card_id', dbCard.id);
+        
+        if (error) {
+          console.log('Error querying progress for card:', dbCard.id, 'error:', error.message);
+          fsrsData = initializeFSRSCard();
+        } else if (progressArray && progressArray.length > 0) {
+          const progress = progressArray[0];
+          fsrsData = {
+            state: progress.state,
+            difficulty: progress.difficulty,
+            stability: progress.stability,
+            due: new Date(progress.due),
+            elapsed_days: progress.elapsed_days,
+            scheduled_days: progress.scheduled_days,
+            reps: progress.reps,
+            lapses: progress.lapses,
+            last_review: progress.last_review ? new Date(progress.last_review) : undefined,
+          };
+        } else {
+          fsrsData = initializeFSRSCard();
+        }
+      } else {
+        // Fallback to localStorage for non-authenticated users
+        const progressKey = `card-progress-${dbCard.id}`;
+        const savedProgress = localStorage.getItem(progressKey);
+        
+        if (savedProgress) {
+          try {
+            const progress = JSON.parse(savedProgress);
+            fsrsData = {
+              ...progress,
+              due: new Date(progress.due),
+              last_review: progress.last_review ? new Date(progress.last_review) : undefined,
+            };
+          } catch (error) {
+            console.error('Error parsing card progress:', error);
+            fsrsData = initializeFSRSCard();
+          }
+        } else {
+          fsrsData = initializeFSRSCard();
+        }
+      }
+
+      return {
+        id: dbCard.id,
+        front: dbCard.front,
+        back: {
+          bangla: dbCard.back_bangla,
+          english: dbCard.back_english,
+        },
+        fsrsData,
+      };
+    }));
+
+    return appCards;
+  } catch (error) {
+    console.error('Error in getDeckCards:', error);
+    return [];
+  }
+}
+
+// Get cards for study session (only due cards + limited new cards)
+export async function getStudyCards(deckId: string, userId?: string): Promise<Card[]> {
+  try {
+    // Get deck info to get daily new limit
+    const { data: deck, error: deckError } = await supabase
+      .from('decks')
+      .select('daily_new_limit')
+      .eq('id', deckId)
+      .single();
+
+    if (deckError) {
+      console.error('Error fetching deck:', deckError);
+      return [];
+    }
+
+    const dailyNewLimit = deck?.daily_new_limit || 20;
+
+    // Get all cards for this deck
+    const { data: cards, error: cardsError } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('created_at', { ascending: true });
+
+    if (cardsError) {
+      console.error('Error fetching cards:', cardsError);
+      return [];
+    }
+
+    if (!cards || cards.length === 0) {
+      return [];
+    }
+
+    // Get user progress for these cards
+    const cardIds = cards.map(card => card.id);
+    const { data: progressData, error: progressError } = await supabase
+      .from('user_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .in('card_id', cardIds);
+
+    if (progressError) {
+      console.error('Error fetching progress:', progressError);
+    }
+
+    // Create a map of card progress
+    const progressMap = new Map();
+    (progressData || []).forEach(progress => {
+      progressMap.set(progress.card_id, progress);
+    });
+
+    // Convert to app format and filter for study
+    const now = new Date();
+    const studyCards: Card[] = [];
+    const newCards: Card[] = [];
+
+    for (const dbCard of cards) {
+      const progress = progressMap.get(dbCard.id);
+      let fsrsData;
+
+      if (progress) {
+        fsrsData = {
+          state: progress.state,
+          difficulty: progress.difficulty,
+          stability: progress.stability,
+          due: new Date(progress.due),
+          elapsed_days: progress.elapsed_days,
+          scheduled_days: progress.scheduled_days,
+          reps: progress.reps,
+          lapses: progress.lapses,
+          last_review: progress.last_review ? new Date(progress.last_review) : undefined,
+        };
+      } else {
+        fsrsData = initializeFSRSCard();
+      }
+
+      const card: Card = {
+        id: dbCard.id,
+        front: dbCard.front,
+        back: {
+          bangla: dbCard.back_bangla,
+          english: dbCard.back_english,
+        },
+        fsrsData,
+      };
+
+      // If card is due for review, add it to study cards
+      if (fsrsData.due <= now) {
+        if (fsrsData.state === 0) { // New card
+          newCards.push(card);
+        } else {
+          studyCards.push(card); // Review card
+        }
+      }
+    }
+
+    // Limit new cards to daily limit
+    const limitedNewCards = newCards.slice(0, dailyNewLimit);
+    
+    // Return review cards + limited new cards
+    return [...studyCards, ...limitedNewCards];
+  } catch (error) {
+    console.error('Error in getStudyCards:', error);
+    return [];
+  }
+}
+
+// Get a specific deck by ID with access control
 export async function getDeckById(id: string, userId?: string): Promise<Deck | undefined> {
   try {
     // Fetch deck
@@ -145,6 +474,18 @@ export async function getDeckById(id: string, userId?: string): Promise<Deck | u
       console.error('Error fetching deck:', deckError);
       return undefined;
     }
+
+    // Check access for regular users (commented out until DB is updated)
+    // if (userId) {
+    //   const isAdmin = await isUserAdmin(userId);
+    //   if (!isAdmin) {
+    //     const hasAccess = await checkDeckAccess(id, userId);
+    //     if (!hasAccess) {
+    //       console.log('User does not have access to this deck');
+    //       return undefined;
+    //     }
+    //   }
+    // }
 
     // Fetch cards for this deck
     const { data: cards, error: cardsError } = await supabase
@@ -184,6 +525,8 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       description: deck.description,
       author: deck.author,
       daily_new_limit: deck.dailyNewLimit,
+      group_access_enabled: deck.groupAccessEnabled ?? false,
+      is_public: deck.isPublic ?? true,
       updated_at: new Date().toISOString(),
     };
 
@@ -267,9 +610,36 @@ export async function saveDeck(deck: Deck): Promise<boolean> {
       }
     }
 
-    // Update existing cards
+    // Update existing cards only if they have changed
     if (existingCardsToUpdate.length > 0) {
-      for (const card of existingCardsToUpdate) {
+      // First, get the current card data from the database
+      const { data: currentCards, error: currentCardsError } = await supabase
+        .from('cards')
+        .select('*')
+        .in('id', existingCardsToUpdate.map(card => card.id));
+
+      if (currentCardsError) {
+        console.error('Error fetching current cards:', currentCardsError);
+        return false;
+      }
+
+      // Only update cards that have actually changed
+      const cardsToUpdate = existingCardsToUpdate.filter(card => {
+        const currentCard = currentCards?.find(c => c.id === card.id);
+        if (!currentCard) return true; // If we can't find it, update it
+
+        // Check if any field has changed
+        return (
+          currentCard.front !== card.front ||
+          currentCard.back_bangla !== card.back.bangla ||
+          currentCard.back_english !== card.back.english
+        );
+      });
+
+      console.log(`Updating ${cardsToUpdate.length} out of ${existingCardsToUpdate.length} existing cards`);
+
+      // Update only the cards that have changed
+      for (const card of cardsToUpdate) {
         const { error: updateError } = await supabase
           .from('cards')
           .update({
@@ -412,6 +782,8 @@ export function getDeckDisplayInfo(deck: Deck): DeckDisplayInfo {
     description: deck.description,
     author: deck.author,
     dailyNewLimit: deck.dailyNewLimit,
+    groupAccessEnabled: deck.groupAccessEnabled ?? false,
+    isPublic: deck.isPublic ?? true,
     stats: deck.stats,
     nextReviewTime,
     nextReviewCount,
@@ -571,7 +943,7 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
     return profiles;
   } catch (error) {
     console.error('Error in getAllUserProfiles:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error stack:', (error as Error).stack);
     return [];
   }
 }
@@ -774,3 +1146,169 @@ export async function initializeUserProfile(userId: string, email: string): Prom
   }
 }
 
+// Deck Access Management Functions
+
+// Get users for deck access selection with pagination and search
+export async function getUsersForDeckAccess(
+  deckId: string,
+  search: string = '',
+  page: number = 1,
+  pageSize: number = 10
+): Promise<{ users: UserSelectionItem[], total: number }> {
+  try {
+    console.log('Getting users for deck access:', { deckId, search, page, pageSize });
+    
+    // Get all user profiles with optional search
+    let query = supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false });
+    
+    // Add search filter if provided
+    if (search.trim()) {
+      query = query.ilike('email', `%${search.trim()}%`);
+    }
+    
+    // Add pagination
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+    
+    const { data: profiles, error: profilesError, count } = await query;
+    
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError);
+      return { users: [], total: 0 };
+    }
+    
+    // Get current deck access for these users
+    const userIds = profiles?.map(p => p.user_id) || [];
+    const { data: accessData, error: accessError } = await supabase
+      .from('deck_user_access')
+      .select('user_id')
+      .eq('deck_id', deckId)
+      .in('user_id', userIds);
+    
+    if (accessError) {
+      console.error('Error fetching deck access:', accessError);
+    }
+    
+    const usersWithAccess = new Set(accessData?.map(a => a.user_id) || []);
+    
+    // Transform to UserSelectionItem format
+    const users: UserSelectionItem[] = (profiles || []).map(profile => ({
+      id: profile.id,
+      userId: profile.user_id,
+      email: profile.email,
+      role: profile.role,
+      hasAccess: usersWithAccess.has(profile.user_id),
+      createdAt: new Date(profile.created_at),
+    }));
+    
+    return { users, total: count || 0 };
+  } catch (error) {
+    console.error('Error in getUsersForDeckAccess:', error);
+    return { users: [], total: 0 };
+  }
+}
+
+// Grant deck access to a user
+export async function grantDeckAccess(deckId: string, userId: string, grantedBy: string): Promise<boolean> {
+  try {
+    console.log('Granting deck access:', { deckId, userId, grantedBy });
+    
+    const { error } = await supabase
+      .from('deck_user_access')
+      .insert({
+        deck_id: deckId,
+        user_id: userId,
+        granted_by: grantedBy,
+      });
+    
+    if (error) {
+      console.error('Error granting deck access:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in grantDeckAccess:', error);
+    return false;
+  }
+}
+
+// Revoke deck access from a user
+export async function revokeDeckAccess(deckId: string, userId: string): Promise<boolean> {
+  try {
+    console.log('Revoking deck access:', { deckId, userId });
+    
+    const { error } = await supabase
+      .from('deck_user_access')
+      .delete()
+      .eq('deck_id', deckId)
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Error revoking deck access:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in revokeDeckAccess:', error);
+    return false;
+  }
+}
+
+// Get deck access list for a specific deck
+export async function getDeckAccessList(deckId: string): Promise<DeckUserAccess[]> {
+  try {
+    const { data, error } = await supabase
+      .from('deck_user_access')
+      .select(`
+        *,
+        user_profiles!deck_user_access_user_id_fkey(email, role)
+      `)
+      .eq('deck_id', deckId)
+      .order('granted_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching deck access list:', error);
+      return [];
+    }
+    
+    return (data || []).map(access => ({
+      id: access.id,
+      deckId: access.deck_id,
+      userId: access.user_id,
+      grantedBy: access.granted_by,
+      grantedAt: new Date(access.granted_at),
+      createdAt: new Date(access.created_at),
+      updatedAt: new Date(access.updated_at),
+    }));
+  } catch (error) {
+    console.error('Error in getDeckAccessList:', error);
+    return [];
+  }
+}
+
+// Check if user has access to a deck
+export async function checkDeckAccess(deckId: string, userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .rpc('user_has_deck_access', {
+        user_uuid: userId,
+        deck_uuid: deckId
+      });
+    
+    if (error) {
+      console.error('Error checking deck access:', error);
+      return false;
+    }
+    
+    return data || false;
+  } catch (error) {
+    console.error('Error in checkDeckAccess:', error);
+    return false;
+  }
+}

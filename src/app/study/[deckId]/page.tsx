@@ -13,7 +13,8 @@ import {
     useCardProgressMutation,
     useStudySessionCompleteMutation
 } from '@/hooks/queries';
-import { reviewCard, getCardsForStudy, getCardStats } from '@/lib/fsrs';
+import { useStudyCards } from '@/lib/queries';
+import { reviewCard, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import { useAuth } from '@/contexts/auth';
@@ -35,9 +36,15 @@ export default function StudyPage({ params }: StudyPageProps) {
     const studySessionCompleteMutation = useStudySessionCompleteMutation();
     const {
         data: deck,
-        isLoading,
-        error
+        isLoading: isDeckLoading,
+        error: deckError
     } = useDeck(deckId, { disableRefetch: true });
+    
+    const {
+        data: studyData,
+        isLoading: isStudyLoading,
+        error: studyError
+    } = useStudyCards(deckId || '', user?.id);
 
     React.useEffect(() => {
         params.then((resolvedParams) => {
@@ -46,35 +53,30 @@ export default function StudyPage({ params }: StudyPageProps) {
     }, [params]);
 
     React.useEffect(() => {
-        if (deck && !session) {
-            const cardsToStudy = getCardsForStudy(
-                deck.cards,
-                deck.dailyNewLimit
-            );
-
-            if (cardsToStudy.length === 0) {
+        if (studyData && deckId && !session) {
+            if (studyData.length === 0) {
                 setSession(null);
                 return;
             }
 
             setSession({
-                deckId: deck.id,
-                cards: cardsToStudy,
+                deckId: deckId,
+                cards: studyData,
                 currentIndex: 0,
                 completed: false
             });
         }
-    }, [deck, session]);
+    }, [studyData, deckId, session]);
 
     React.useEffect(() => {
-        if (error) {
-            console.error('Error loading deck:', error);
+        if (deckError || studyError) {
+            console.error('Error loading deck:', deckError || studyError);
             router.push('/');
         }
-    }, [error, router]);
+    }, [deckError, studyError, router]);
 
     const handleRating = async (rating: Rating) => {
-        if (!session || !deck) return;
+        if (!session || !studyData) return;
 
         try {
             const currentCard = session.cards[session.currentIndex];
@@ -106,20 +108,19 @@ export default function StudyPage({ params }: StudyPageProps) {
     };
 
     const handleStudyAgain = () => {
-        if (!deck) return;
+        if (!studyData || !deckId) return;
 
-        const cardsToStudy = getCardsForStudy(deck.cards, deck.dailyNewLimit);
-        if (cardsToStudy.length > 0) {
+        if (studyData.length > 0) {
             setSession({
-                deckId: deck.id,
-                cards: cardsToStudy,
+                deckId: deckId,
+                cards: studyData,
                 currentIndex: 0,
                 completed: false
             });
         }
     };
 
-    if (isLoading) {
+    if (isDeckLoading || isStudyLoading) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
@@ -136,7 +137,7 @@ export default function StudyPage({ params }: StudyPageProps) {
         );
     }
 
-    if (!deck) {
+    if (!deck || !studyData) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
