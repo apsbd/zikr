@@ -14,13 +14,24 @@ import LandingPage from '@/components/LandingPage';
 
 function Dashboard() {
     const router = useRouter();
-    const { data: displayDecks = [], isLoading, error } = useDeckDisplay();
+    const { data: displayDecks = [], isLoading, error, refetch } = useDeckDisplay();
 
     useEffect(() => {
         if (error) {
             console.error('Error loading decks:', error);
         }
     }, [error]);
+
+    // Force refresh when returning to dashboard
+    useEffect(() => {
+        const handleFocus = () => {
+            console.log('Dashboard focused - refetching data...');
+            refetch();
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [refetch]);
 
 
     const handleStudy = (deckId: string) => {

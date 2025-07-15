@@ -51,14 +51,11 @@ export function useDeckDisplay() {
     
     return useQuery({
         queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
-        queryFn: async () => {
-            const decks = await getDecks(user?.id);
-            return decks.map(deck => getDeckDisplayInfo(deck));
-        },
+        queryFn: () => getDeckMetadata(user?.id),
         enabled: !!user,
-        staleTime: 1 * 60 * 1000, // 1 minute
+        staleTime: 30 * 1000, // 30 seconds - shorter for more frequent updates
         refetchOnWindowFocus: true,
-        refetchInterval: 5 * 60 * 1000, // Auto-refetch every 5 minutes
+        refetchInterval: 2 * 60 * 1000, // Auto-refetch every 2 minutes
     });
 }
 
@@ -70,13 +67,22 @@ export function useCardProgressMutation() {
         mutationFn: ({ cardId, fsrsData }: { cardId: string; fsrsData: any }) => 
             saveCardProgress(cardId, fsrsData, user?.id),
         onSuccess: (_, { cardId }) => {
-            // Only invalidate dashboard queries, not deck queries during study
+            console.log('Card progress saved for card:', cardId);
+            
+            // Invalidate dashboard queries to update progress
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
             });
             
-            // Don't invalidate study card queries immediately - let them use cache
-            // This prevents disrupting active study sessions
+            // Also invalidate the new query system
+            queryClient.invalidateQueries({
+                predicate: (query) => {
+                    const [key] = query.queryKey;
+                    return key === 'decks' && query.queryKey.includes('metadata');
+                }
+            });
+            
+            console.log('Dashboard queries invalidated after card progress update');
         },
     });
 }
@@ -91,19 +97,31 @@ export function useStudySessionCompleteMutation() {
             return Promise.resolve();
         },
         onSuccess: () => {
-            // Now it's safe to invalidate all deck queries
-            queryClient.invalidateQueries({
+            console.log('Study session completed - invalidating queries...');
+            
+            // Clear all deck-related cache completely
+            queryClient.removeQueries({
                 queryKey: [QUERY_KEYS.DECKS, user?.id],
             });
-            queryClient.invalidateQueries({
+            queryClient.removeQueries({
                 queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
             });
-            queryClient.invalidateQueries({
+            queryClient.removeQueries({
                 predicate: (query) => {
                     const [key] = query.queryKey;
                     return key === QUERY_KEYS.DECK || key === QUERY_KEYS.STUDY_CARDS;
                 }
             });
+            
+            // Also clear the new query system cache
+            queryClient.removeQueries({
+                predicate: (query) => {
+                    const [key] = query.queryKey;
+                    return key === 'decks';
+                }
+            });
+            
+            console.log('Cache cleared - forcing fresh data fetch');
         },
     });
 }

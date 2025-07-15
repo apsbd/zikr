@@ -109,10 +109,7 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
       return [];
     }
     
-    console.log('getDeckMetadata: Found decks:', decks?.length || 0);
-    
     if (!decks || decks.length === 0) {
-      console.log('getDeckMetadata: No decks found');
       return [];
     }
 
@@ -134,20 +131,18 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
         }
 
         // Get user progress stats if userId is provided
-        let newCards = 0;
-        let reviewCards = 0;
+        let progressedNewCards = 0;
         let learningCards = 0;
+        let reviewCards = 0;
 
-        if (userId) {
+        if (userId && totalCards && totalCards > 0) {
           // First get card IDs for this deck
           const { data: cardIds, error: cardIdsError } = await supabase
             .from('cards')
             .select('id')
             .eq('deck_id', deck.id);
           
-          if (cardIdsError) {
-            console.error('Error fetching card IDs:', cardIdsError);
-          } else if (cardIds && cardIds.length > 0) {
+          if (!cardIdsError && cardIds && cardIds.length > 0) {
             // Get user progress for this deck
             const { data: progressData, error: progressError } = await supabase
               .from('user_progress')
@@ -160,7 +155,7 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
               progressData.forEach(progress => {
                 switch (progress.state) {
                   case 0:
-                    newCards++;
+                    progressedNewCards++;
                     break;
                   case 1:
                   case 3:
@@ -174,10 +169,16 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
             }
           }
         }
+        
+        // Calculate new cards = cards without progress + cards with new state
+        const cardsWithProgress = progressedNewCards + learningCards + reviewCards;
+        const cardsWithoutProgress = Math.max(0, (totalCards || 0) - cardsWithProgress);
+        const totalNewCards = cardsWithoutProgress + progressedNewCards;
 
-        // New cards = total cards - cards with progress
-        const progressedCards = newCards + learningCards + reviewCards;
-        newCards = (totalCards || 0) - progressedCards;
+        // Calculate cards due for study
+        // New cards up to daily limit + learning/review cards (assuming they're mostly due)
+        const cardsDue = Math.min(totalNewCards, deck.daily_new_limit || 20) + learningCards + reviewCards;
+        const nextReviewTime = cardsDue > 0 ? new Date() : null;
 
         return {
           id: deck.id,
@@ -189,12 +190,12 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
           isPublic: (deck as any).is_public ?? true,
           stats: {
             total: totalCards || 0,
-            new: newCards,
+            new: totalNewCards,
             learning: learningCards,
             review: reviewCards,
           },
-          nextReviewTime: null, // Will be calculated when needed
-          nextReviewCount: 0,
+          nextReviewTime,
+          nextReviewCount: cardsDue,
           cards: [], // Empty - cards loaded on demand
         };
       })

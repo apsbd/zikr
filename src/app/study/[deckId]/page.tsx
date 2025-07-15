@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
 import {
-    useDeck,
+    useDeckDisplay,
     useCardProgressMutation,
     useStudySessionCompleteMutation
 } from '@/hooks/queries';
@@ -29,26 +29,37 @@ interface StudyPageProps {
 export default function StudyPage({ params }: StudyPageProps) {
     const [deckId, setDeckId] = useState<string | undefined>();
     const [session, setSession] = useState<StudySession | null>(null);
+    const [currentBatch, setCurrentBatch] = useState(0);
     const router = useRouter();
     const { user } = useAuth();
 
     const cardProgressMutation = useCardProgressMutation();
     const studySessionCompleteMutation = useStudySessionCompleteMutation();
+    
+    // Get deck metadata for UI (title, etc.) - this is fast and doesn't load cards
     const {
-        data: deck,
-        isLoading: isDeckLoading,
-        error: deckError
-    } = useDeck(deckId, { disableRefetch: true });
+        data: deckMetadata,
+        isLoading: isDeckMetadataLoading,
+        error: deckMetadataError
+    } = useDeckDisplay();
+    
+    // Find the current deck from metadata
+    const currentDeck = deckMetadata?.find(d => d.id === deckId);
+    
+    // Lazy load study cards only when we're ready to study
+    const [shouldLoadCards, setShouldLoadCards] = useState(false);
     
     const {
         data: studyData,
         isLoading: isStudyLoading,
         error: studyError
-    } = useStudyCards(deckId || '', user?.id);
+    } = useStudyCards(deckId || '', user?.id, shouldLoadCards && !!deckId && !!user);
 
     React.useEffect(() => {
         params.then((resolvedParams) => {
             setDeckId(resolvedParams.deckId);
+            // Start loading cards once we have the deck ID
+            setShouldLoadCards(true);
         });
     }, [params]);
 
@@ -59,21 +70,42 @@ export default function StudyPage({ params }: StudyPageProps) {
                 return;
             }
 
+            // Load cards in batches of 10
+            const batchSize = 10;
+            const cardsToLoad = studyData.slice(0, batchSize);
+
             setSession({
                 deckId: deckId,
-                cards: studyData,
+                cards: cardsToLoad,
                 currentIndex: 0,
                 completed: false
             });
         }
     }, [studyData, deckId, session]);
 
+    // Load more cards when approaching the end of current batch
     React.useEffect(() => {
-        if (deckError || studyError) {
-            console.error('Error loading deck:', deckError || studyError);
+        if (session && studyData && session.currentIndex >= session.cards.length - 3) {
+            const batchSize = 10;
+            const nextBatchStart = session.cards.length;
+            const nextBatchEnd = nextBatchStart + batchSize;
+            const nextBatch = studyData.slice(nextBatchStart, nextBatchEnd);
+            
+            if (nextBatch.length > 0) {
+                setSession(prev => prev ? {
+                    ...prev,
+                    cards: [...prev.cards, ...nextBatch]
+                } : null);
+            }
+        }
+    }, [session, studyData]);
+
+    React.useEffect(() => {
+        if (deckMetadataError || studyError) {
+            console.error('Error loading deck:', deckMetadataError || studyError);
             router.push('/');
         }
-    }, [deckError, studyError, router]);
+    }, [deckMetadataError, studyError, router]);
 
     const handleRating = async (rating: Rating) => {
         if (!session || !studyData) return;
@@ -120,7 +152,7 @@ export default function StudyPage({ params }: StudyPageProps) {
         }
     };
 
-    if (isDeckLoading || isStudyLoading) {
+    if (isDeckMetadataLoading || isStudyLoading) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
@@ -137,7 +169,7 @@ export default function StudyPage({ params }: StudyPageProps) {
         );
     }
 
-    if (!deck || !studyData) {
+    if (!currentDeck || !studyData) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
@@ -237,7 +269,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                                     <BackButton href='/' />
                                 </div>
                                 <h2 className='text-lg font-semibold text-center'>
-                                    {deck.title}
+                                    {currentDeck?.title}
                                 </h2>
                             </div>
                         </div>
@@ -248,7 +280,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                                 <BackButton href='/' />
                             </div>
                             <h2 className='text-base font-semibold text-center px-2'>
-                                {deck.title}
+                                {currentDeck?.title}
                             </h2>
                         </div>
                         
