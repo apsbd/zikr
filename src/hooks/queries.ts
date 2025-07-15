@@ -30,15 +30,16 @@ export function useDecks() {
     });
 }
 
-export function useDeck(deckId: string | undefined) {
+export function useDeck(deckId: string | undefined, options?: { disableRefetch?: boolean }) {
     const { user } = useAuth();
     
     return useQuery({
         queryKey: [QUERY_KEYS.DECK, deckId, user?.id],
         queryFn: () => getDeckById(deckId!, user?.id),
         enabled: !!deckId && !!user,
-        staleTime: 30 * 1000, // 30 seconds (study sessions need fresh data)
-        refetchOnWindowFocus: true,
+        staleTime: 10 * 60 * 1000, // 10 minutes (longer for study sessions)
+        refetchOnWindowFocus: options?.disableRefetch ? false : true,
+        refetchInterval: options?.disableRefetch ? false : undefined,
     });
 }
 
@@ -66,16 +67,37 @@ export function useCardProgressMutation() {
         mutationFn: ({ cardId, fsrsData }: { cardId: string; fsrsData: any }) => 
             saveCardProgress(cardId, fsrsData, user?.id),
         onSuccess: (_, { cardId }) => {
+            // Only invalidate dashboard queries, not deck queries during study
+            queryClient.invalidateQueries({
+                queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
+            });
+            
+            // Don't invalidate deck queries immediately - let them use cache
+            // This prevents disrupting active study sessions
+        },
+    });
+}
+
+export function useStudySessionCompleteMutation() {
+    const queryClient = useQueryClient();
+    const { user } = useAuth();
+    
+    return useMutation({
+        mutationFn: async () => {
+            // This is just a signal that the study session is complete
+            return Promise.resolve();
+        },
+        onSuccess: () => {
+            // Now it's safe to invalidate all deck queries
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.DECKS, user?.id],
             });
             queryClient.invalidateQueries({
                 queryKey: [QUERY_KEYS.DECK_DISPLAY, user?.id],
             });
-            
             queryClient.invalidateQueries({
                 predicate: (query) => {
-                    const [key, deckId] = query.queryKey;
+                    const [key] = query.queryKey;
                     return key === QUERY_KEYS.DECK;
                 }
             });

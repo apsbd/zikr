@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
-import { useDeck, useCardProgressMutation } from '@/hooks/queries';
+import { useDeck, useCardProgressMutation, useStudySessionCompleteMutation } from '@/hooks/queries';
 import { reviewCard, getCardsForStudy, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
@@ -27,7 +27,8 @@ export default function StudyPage({ params }: StudyPageProps) {
   const { user } = useAuth();
   
   const cardProgressMutation = useCardProgressMutation();
-  const { data: deck, isLoading, error } = useDeck(deckId);
+  const studySessionCompleteMutation = useStudySessionCompleteMutation();
+  const { data: deck, isLoading, error } = useDeck(deckId, { disableRefetch: true });
 
   React.useEffect(() => {
     params.then(resolvedParams => {
@@ -36,7 +37,7 @@ export default function StudyPage({ params }: StudyPageProps) {
   }, [params]);
 
   React.useEffect(() => {
-    if (deck) {
+    if (deck && !session) {
       const cardsToStudy = getCardsForStudy(deck.cards);
       
       if (cardsToStudy.length === 0) {
@@ -51,7 +52,7 @@ export default function StudyPage({ params }: StudyPageProps) {
         completed: false,
       });
     }
-  }, [deck]);
+  }, [deck, session]);
 
   React.useEffect(() => {
     if (error) {
@@ -76,6 +77,8 @@ export default function StudyPage({ params }: StudyPageProps) {
       const nextIndex = session.currentIndex + 1;
       if (nextIndex >= session.cards.length) {
         setSession({ ...session, completed: true });
+        // Trigger query invalidation now that the session is complete
+        studySessionCompleteMutation.mutate();
       } else {
         setSession({ ...session, currentIndex: nextIndex });
       }
@@ -85,6 +88,8 @@ export default function StudyPage({ params }: StudyPageProps) {
   };
 
   const handleReturnToDashboard = () => {
+    // Trigger query invalidation before leaving
+    studySessionCompleteMutation.mutate();
     router.push('/');
   };
 
