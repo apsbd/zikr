@@ -476,6 +476,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     }
 
     console.log('Successfully fetched user profile:', data);
+    
+    // Handle missing is_banned field for backward compatibility
+    if (data && data.is_banned === undefined) {
+      data.is_banned = false;
+    }
+    
     return data;
   } catch (error) {
     console.error('Error in getUserProfile:', error);
@@ -507,6 +513,27 @@ export async function getUserProfileByEmail(email: string): Promise<UserProfile 
 // Get all user profiles (admin/superuser only)
 export async function getAllUserProfiles(): Promise<UserProfile[]> {
   try {
+    console.log('Fetching all user profiles...');
+    console.log('Supabase client initialized:', !!supabase);
+    
+    // First get current user info
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    console.log('Current user:', currentUser);
+    
+    // Get current user's profile to check role
+    if (currentUser) {
+      const currentProfile = await getUserProfile(currentUser.id);
+      console.log('Current user profile:', currentProfile);
+    }
+    
+    // First check if the table exists and what columns it has
+    const { data: tableInfo, error: tableError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .limit(1);
+    
+    console.log('Table info query result:', { tableInfo, tableError });
+    
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -514,12 +541,107 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
 
     if (error) {
       console.error('Error fetching all user profiles:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return [];
     }
 
-    return data || [];
+    console.log('Raw data from database:', data);
+    console.log('Number of profiles found:', data?.length || 0);
+    console.log('Data type:', typeof data);
+    console.log('Is array?', Array.isArray(data));
+    
+    if (data) {
+      data.forEach((profile, index) => {
+        console.log(`Profile ${index}:`, profile);
+      });
+    }
+    
+    // Handle missing is_banned field for backward compatibility
+    const profiles = (data || []).map(profile => ({
+      ...profile,
+      is_banned: profile.is_banned ?? false
+    }));
+
+    console.log('Processed profiles:', profiles);
+    return profiles;
   } catch (error) {
     console.error('Error in getAllUserProfiles:', error);
+    console.error('Error stack:', error.stack);
+    return [];
+  }
+}
+
+// Get all authenticated users who might not have profiles yet
+export async function getAllAuthenticatedUsers(): Promise<any[]> {
+  try {
+    console.log('Fetching all authenticated users...');
+    
+    // This requires admin privileges - might not work in client-side code
+    // const { data, error } = await supabase.auth.admin.listUsers();
+    
+    // Instead, let's check if we can find users through other means
+    // For now, we'll return empty array and focus on user_profiles table
+    return [];
+  } catch (error) {
+    console.error('Error in getAllAuthenticatedUsers:', error);
+    return [];
+  }
+}
+
+// Debug function to check user profiles without RLS
+export async function debugGetAllUserProfiles(): Promise<any> {
+  try {
+    console.log('DEBUG: Fetching all user profiles without RLS...');
+    
+    // Try to get raw count first
+    const { count, error: countError } = await supabase
+      .from('user_profiles')
+      .select('*', { count: 'exact', head: true });
+    
+    console.log('DEBUG: Raw count query result:', { count, countError });
+    
+    // Try to get count using our function
+    const { data: countData, error: countFnError } = await supabase
+      .rpc('get_user_profiles_count');
+    
+    console.log('DEBUG: Count function result:', { countData, countFnError });
+    
+    // Try to get data with RLS bypass (this might fail)
+    const { data: rawData, error: rawError } = await supabase
+      .rpc('get_all_user_profiles_debug');
+    
+    console.log('DEBUG: RPC call result:', { rawData, rawError });
+    
+    return { count, countError, countData, countFnError, rawData, rawError };
+  } catch (error) {
+    console.error('DEBUG: Error in debugGetAllUserProfiles:', error);
+    return { error };
+  }
+}
+
+// Helper function to get all authenticated users (for debugging)
+export async function getAllAuthUsers() {
+  try {
+    console.log('Fetching all auth users...');
+    
+    // Note: This requires admin privileges and may not work in client-side code
+    // This is mainly for debugging to see if there are auth users without profiles
+    const { data, error } = await supabase.auth.admin.listUsers();
+
+    if (error) {
+      console.error('Error fetching auth users:', error);
+      return [];
+    }
+
+    console.log('Auth users:', data.users);
+    return data.users;
+  } catch (error) {
+    console.error('Error in getAllAuthUsers:', error);
     return [];
   }
 }
@@ -565,11 +687,41 @@ export async function updateUserRole(userId: string, role: 'user' | 'admin' | 's
   }
 }
 
+// Ban/Unban user (admin/superuser only)
+export async function updateUserBanStatus(userId: string, isBanned: boolean): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ is_banned: isBanned, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating user ban status:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in updateUserBanStatus:', error);
+    return false;
+  }
+}
+
 // Check if user has admin privileges
 export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
+    console.log('Checking admin status for userId:', userId);
     const profile = await getUserProfile(userId);
-    return profile?.role === 'admin' || profile?.role === 'superuser';
+    console.log('Profile for admin check:', profile);
+    
+    if (!profile) {
+      console.log('No profile found for user');
+      return false;
+    }
+    
+    const isAdmin = profile.role === 'admin' || profile.role === 'superuser';
+    console.log('Admin status result:', isAdmin);
+    return isAdmin;
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -579,8 +731,18 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
 // Check if user is superuser
 export async function isUserSuperuser(userId: string): Promise<boolean> {
   try {
+    console.log('Checking superuser status for userId:', userId);
     const profile = await getUserProfile(userId);
-    return profile?.role === 'superuser';
+    console.log('Profile for superuser check:', profile);
+    
+    if (!profile) {
+      console.log('No profile found for user');
+      return false;
+    }
+    
+    const isSuperuser = profile.role === 'superuser';
+    console.log('Superuser status result:', isSuperuser);
+    return isSuperuser;
   } catch (error) {
     console.error('Error checking superuser status:', error);
     return false;
@@ -604,9 +766,11 @@ export async function initializeUserProfile(userId: string, email: string): Prom
       user_id: userId,
       email,
       role,
+      is_banned: false,
     });
   } catch (error) {
     console.error('Error initializing user profile:', error);
     return null;
   }
 }
+

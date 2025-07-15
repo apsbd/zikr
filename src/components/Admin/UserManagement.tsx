@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Shield, Crown, User } from 'lucide-react';
-import { getAllUserProfiles, updateUserRole } from '@/lib/database';
+import { Users, Shield, Crown, User, Ban, UserCheck } from 'lucide-react';
+import { getAllUserProfiles, updateUserRole, updateUserBanStatus, debugGetAllUserProfiles } from '@/lib/database';
 import type { Database } from '@/types/database';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
@@ -18,7 +18,14 @@ export default function UserManagement() {
     const loadUsers = async () => {
         try {
             setLoading(true);
+            console.log('Loading users...');
+            
+            // Run debug function for logging
+            const debugResult = await debugGetAllUserProfiles();
+            console.log('Debug result:', debugResult);
+            
             const userProfiles = await getAllUserProfiles();
+            console.log('Loaded user profiles:', userProfiles);
             setUsers(userProfiles);
         } catch (error) {
             console.error('Error loading users:', error);
@@ -55,6 +62,34 @@ export default function UserManagement() {
             setUpdating(null);
         }
     };
+
+    const handleBanStatusChange = async (userId: string, isBanned: boolean) => {
+        try {
+            setUpdating(userId);
+            setMessage(null);
+
+            const success = await updateUserBanStatus(userId, isBanned);
+            
+            if (success) {
+                setMessage({ 
+                    type: 'success', 
+                    text: `User ${isBanned ? 'banned' : 'unbanned'} successfully` 
+                });
+                await loadUsers(); // Refresh the list
+                
+                // Auto-clear success message after 3 seconds
+                setTimeout(() => setMessage(null), 3000);
+            } else {
+                setMessage({ type: 'error', text: `Failed to ${isBanned ? 'ban' : 'unban'} user` });
+            }
+        } catch (error) {
+            console.error('Error updating user ban status:', error);
+            setMessage({ type: 'error', text: `Failed to ${isBanned ? 'ban' : 'unban'} user` });
+        } finally {
+            setUpdating(null);
+        }
+    };
+
 
     const getRoleIcon = (role: string) => {
         switch (role) {
@@ -106,48 +141,86 @@ export default function UserManagement() {
 
             {/* Users List */}
             <div className='space-y-4'>
-                {users.map((user) => (
-                    <Card key={user.id}>
-                        <CardContent className='p-6'>
-                            <div className='flex items-center justify-between'>
-                                <div className='flex items-center gap-4'>
-                                    {getRoleIcon(user.role)}
-                                    <div>
-                                        <h3 className='font-medium text-foreground'>{user.email}</h3>
-                                        <p className='text-sm text-muted-foreground'>
-                                            Created: {new Date(user.created_at).toLocaleDateString()}
-                                        </p>
+                {users.map((user) => {
+                    const isBanned = user.is_banned || false; // Handle missing field
+                    return (
+                        <Card key={user.id} className={isBanned ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10' : ''}>
+                            <CardContent className='p-6'>
+                                <div className='flex items-center justify-between'>
+                                    <div className='flex items-center gap-4'>
+                                        {getRoleIcon(user.role)}
+                                        <div>
+                                            <div className='flex items-center gap-2'>
+                                                <h3 className={`font-medium ${isBanned ? 'text-red-600 dark:text-red-400' : 'text-foreground'}`}>
+                                                    {user.email}
+                                                </h3>
+                                                {isBanned && (
+                                                    <span className='px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'>
+                                                        BANNED
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className='text-sm text-muted-foreground'>
+                                                Created: {new Date(user.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
                                 
                                 <div className='flex items-center gap-4'>
                                     <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeColor(user.role)}`}>
                                         {user.role}
                                     </span>
                                     
-                                    {/* Role Change Buttons */}
+                                    {/* Role Change and Ban Buttons */}
                                     {user.role !== 'superuser' && (
-                                        <div className='flex gap-2'>
-                                            {user.role !== 'admin' && (
-                                                <Button
-                                                    size='sm'
-                                                    variant='outline'
-                                                    onClick={() => handleRoleChange(user.user_id, 'admin')}
-                                                    disabled={updating === user.user_id}
-                                                >
-                                                    {updating === user.user_id ? 'Updating...' : 'Make Admin'}
-                                                </Button>
+                                        <div className='flex gap-2 flex-wrap'>
+                                            {/* Role Change Buttons */}
+                                            {!isBanned && (
+                                                <>
+                                                    {user.role !== 'admin' && (
+                                                        <Button
+                                                            size='sm'
+                                                            variant='outline'
+                                                            onClick={() => handleRoleChange(user.user_id, 'admin')}
+                                                            disabled={updating === user.user_id}
+                                                        >
+                                                            {updating === user.user_id ? 'Updating...' : 'Make Admin'}
+                                                        </Button>
+                                                    )}
+                                                    {user.role !== 'user' && (
+                                                        <Button
+                                                            size='sm'
+                                                            variant='outline'
+                                                            onClick={() => handleRoleChange(user.user_id, 'user')}
+                                                            disabled={updating === user.user_id}
+                                                        >
+                                                            {updating === user.user_id ? 'Updating...' : 'Make User'}
+                                                        </Button>
+                                                    )}
+                                                </>
                                             )}
-                                            {user.role !== 'user' && (
-                                                <Button
-                                                    size='sm'
-                                                    variant='outline'
-                                                    onClick={() => handleRoleChange(user.user_id, 'user')}
-                                                    disabled={updating === user.user_id}
-                                                >
-                                                    {updating === user.user_id ? 'Updating...' : 'Make User'}
-                                                </Button>
-                                            )}
+                                            
+                                            {/* Ban/Unban Button */}
+                                            <Button
+                                                size='sm'
+                                                variant={isBanned ? 'default' : 'destructive'}
+                                                onClick={() => handleBanStatusChange(user.user_id, !isBanned)}
+                                                disabled={updating === user.user_id}
+                                            >
+                                                {updating === user.user_id ? (
+                                                    'Updating...'
+                                                ) : isBanned ? (
+                                                    <>
+                                                        <UserCheck className='w-4 h-4 mr-1' />
+                                                        Unban
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Ban className='w-4 h-4 mr-1' />
+                                                        Ban
+                                                    </>
+                                                )}
+                                            </Button>
                                         </div>
                                     )}
                                     
@@ -160,12 +233,38 @@ export default function UserManagement() {
                             </div>
                         </CardContent>
                     </Card>
-                ))}
+                    );
+                })}
             </div>
 
             {users.length === 0 && (
                 <div className='text-center py-12'>
                     <p className='text-muted-foreground'>No users found</p>
+                </div>
+            )}
+            
+            {users.length === 1 && (
+                <div className='text-center py-8'>
+                    <Card className='max-w-md mx-auto'>
+                        <CardContent className='p-6'>
+                            <div className='space-y-4'>
+                                <div className='text-center'>
+                                    <Users className='w-12 h-12 mx-auto text-muted-foreground mb-4' />
+                                    <h3 className='text-lg font-semibold'>Only One User Profile</h3>
+                                    <p className='text-sm text-muted-foreground'>
+                                        Currently, only your profile exists in the system. 
+                                        User profiles are automatically created when users sign up.
+                                    </p>
+                                </div>
+                                <div className='text-xs text-muted-foreground space-y-2'>
+                                    <p>• New users who sign up will automatically appear here</p>
+                                    <p>• Profiles are created instantly when users register</p>
+                                    <p>• This is normal for a new application with one user</p>
+                                    <p>• Check browser console for technical details</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>

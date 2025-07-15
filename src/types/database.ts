@@ -121,6 +121,7 @@ export interface Database {
           user_id: string;
           email: string;
           role: 'user' | 'admin' | 'superuser';
+          is_banned: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -129,6 +130,7 @@ export interface Database {
           user_id: string;
           email: string;
           role?: 'user' | 'admin' | 'superuser';
+          is_banned?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -137,6 +139,7 @@ export interface Database {
           user_id?: string;
           email?: string;
           role?: 'user' | 'admin' | 'superuser';
+          is_banned?: boolean;
           created_at?: string;
           updated_at?: string;
         };

@@ -14,7 +14,7 @@ import {
 } from '@/lib/database';
 import { testDatabaseConnection } from '@/lib/test-db';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
-import { BookOpen, Plus, Edit, Trash2, Users, Settings } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, Users, Settings, Copy, Check } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import UserManagement from '@/components/Admin/UserManagement';
@@ -26,7 +26,45 @@ export default function AdminPanel() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isSuperuser, setIsSuperuser] = useState(false);
     const [activeTab, setActiveTab] = useState<'decks' | 'users'>('decks');
+    const [debugLogs, setDebugLogs] = useState<string[]>([]);
+    const [showDebugPanel, setShowDebugPanel] = useState(false);
+    const [copiedLogs, setCopiedLogs] = useState(false);
     const { user, loading } = useAuth();
+
+    // Debug logging function
+    const addDebugLog = (message: string, data?: any) => {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = data 
+            ? `[${timestamp}] ${message}: ${JSON.stringify(data, null, 2)}`
+            : `[${timestamp}] ${message}`;
+        
+        setDebugLogs(prev => [...prev, logEntry]);
+        console.log(message, data); // Still log to console too
+    };
+
+    // Copy debug logs to clipboard
+    const copyLogsToClipboard = async () => {
+        try {
+            const allLogs = debugLogs.join('\n\n');
+            const currentState = `
+Current State:
+- User Email: ${user?.email || 'Not available'}
+- User ID: ${user?.id || 'Not available'}
+- Is Authenticated: ${isAuthenticated ? 'Yes' : 'No'}
+- Is Superuser: ${isSuperuser ? 'Yes' : 'No'}
+- Loading: ${loading ? 'Yes' : 'No'}
+
+Debug Logs:
+${allLogs}
+            `.trim();
+            
+            await navigator.clipboard.writeText(currentState);
+            setCopiedLogs(true);
+            setTimeout(() => setCopiedLogs(false), 2000);
+        } catch (error) {
+            console.error('Failed to copy logs:', error);
+        }
+    };
 
     const loadDecks = async () => {
         try {
@@ -44,39 +82,35 @@ export default function AdminPanel() {
 
         const checkUserRole = async () => {
             try {
-                console.log(
-                    'Checking user role for:',
-                    user.email,
-                    'User ID:',
-                    user.id
-                );
+                addDebugLog('Checking user role for', {
+                    email: user.email,
+                    userId: user.id
+                });
 
                 // Test database connection first
                 const dbTest = await testDatabaseConnection();
-                console.log('Database test result:', dbTest);
+                addDebugLog('Database test result', dbTest);
 
                 // Initialize user profile if it doesn't exist
                 const profile = await initializeUserProfile(
                     user.id,
                     user.email || ''
                 );
-                console.log('User profile:', profile);
+                addDebugLog('User profile', profile);
 
                 // Check if user has admin privileges
                 const adminStatus = await isUserAdmin(user.id);
                 const superuserStatus = await isUserSuperuser(user.id);
 
-                console.log(
-                    'Admin status:',
+                addDebugLog('Role check results', {
                     adminStatus,
-                    'Superuser status:',
                     superuserStatus
-                );
+                });
 
                 setIsAuthenticated(adminStatus);
                 setIsSuperuser(superuserStatus);
             } catch (error) {
-                console.error('Error checking user role:', error);
+                addDebugLog('Error checking user role', error);
             }
         };
 
@@ -193,6 +227,15 @@ export default function AdminPanel() {
                                         Users
                                     </button>
                                 )}
+                                {isSuperuser && (
+                                    <button
+                                        onClick={() => setShowDebugPanel(true)}
+                                        className='flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground'
+                                    >
+                                        <Settings className='w-4 h-4' />
+                                        Debug
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -275,6 +318,118 @@ export default function AdminPanel() {
                         )}
                     </div>
                 </ScrollArea>
+
+                {/* Debug Panel Overlay */}
+                {showDebugPanel && (
+                    <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+                        <div className='bg-background border rounded-lg shadow-lg max-w-4xl w-full max-h-[90vh] overflow-hidden'>
+                            <div className='flex items-center justify-between p-4 border-b'>
+                                <div className='flex items-center gap-3'>
+                                    <Settings className='w-6 h-6' />
+                                    <h2 className='text-2xl font-bold'>Debug Panel</h2>
+                                </div>
+                                <div className='flex items-center gap-2'>
+                                    <Button
+                                        onClick={copyLogsToClipboard}
+                                        variant='outline'
+                                        size='sm'
+                                        disabled={copiedLogs}
+                                    >
+                                        {copiedLogs ? (
+                                            <>
+                                                <Check className='w-4 h-4 mr-1' />
+                                                Copied!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className='w-4 h-4 mr-1' />
+                                                Copy Logs
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        onClick={() => setDebugLogs([])}
+                                        variant='outline'
+                                        size='sm'
+                                    >
+                                        Clear Logs
+                                    </Button>
+                                    <Button
+                                        onClick={() => setShowDebugPanel(false)}
+                                        variant='outline'
+                                        size='sm'
+                                    >
+                                        Close
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            <div className='p-4 overflow-y-auto max-h-[calc(90vh-80px)]'>
+                                <div className='space-y-6'>
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Current State</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className='space-y-4'>
+                                                <div className='grid grid-cols-2 gap-4'>
+                                                    <div>
+                                                        <label className='text-sm font-medium'>User Email:</label>
+                                                        <p className='text-sm text-muted-foreground'>{user?.email || 'Not available'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <label className='text-sm font-medium'>User ID:</label>
+                                                        <p className='text-sm text-muted-foreground font-mono'>{user?.id || 'Not available'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <label className='text-sm font-medium'>Is Authenticated:</label>
+                                                        <p className={`text-sm font-medium ${isAuthenticated ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {isAuthenticated ? 'Yes' : 'No'}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <label className='text-sm font-medium'>Is Superuser:</label>
+                                                        <p className={`text-sm font-medium ${isSuperuser ? 'text-green-600' : 'text-red-600'}`}>
+                                                            {isSuperuser ? 'Yes' : 'No'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className='text-sm font-medium'>Loading:</label>
+                                                    <p className='text-sm text-muted-foreground'>{loading ? 'Yes' : 'No'}</p>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Authentication Debug Logs</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className='space-y-2 max-h-96 overflow-y-auto'>
+                                                {debugLogs.length === 0 ? (
+                                                    <p className='text-muted-foreground text-sm'>
+                                                        No debug logs yet. Try refreshing the page or triggering an action.
+                                                    </p>
+                                                ) : (
+                                                    debugLogs.map((log, index) => (
+                                                        <div
+                                                            key={index}
+                                                            className='p-3 bg-muted/50 rounded-md font-mono text-xs whitespace-pre-wrap break-all'
+                                                        >
+                                                            {log}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </ProtectedRoute>
     );
