@@ -7,6 +7,18 @@ export default function ClientWrapper({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     setMounted(true);
+    
+    // Initialize app updater
+    const initAppUpdater = async () => {
+      try {
+        const { appUpdater } = await import('@/lib/app-updater');
+        await appUpdater.initialize();
+      } catch (error) {
+        console.error('Failed to initialize app updater:', error);
+      }
+    };
+    
+    initAppUpdater();
   }, []);
 
   if (!mounted) {

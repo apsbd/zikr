@@ -203,6 +203,100 @@ export async function getDeckMetadataLocal(userId?: string): Promise<DeckDisplay
   }
 }
 
+// Filter decks based on access control
+async function filterAccessibleDecks(decks: any[], userId?: string): Promise<any[]> {
+  if (!userId) {
+    // For unauthenticated users, only return public decks
+    return decks.filter(deck => 
+      deck.is_public === true && deck.group_access_enabled === false
+    );
+  }
+
+  try {
+    // Check if user is admin or superuser (both can see all decks)
+    const isAdmin = await isUserAdmin(userId); // This includes both admin and superuser roles
+    if (isAdmin) {
+      return decks; // Admins and superusers see everything
+    }
+
+    // For regular users only, filter based on access rules
+    const accessibleDecks = [];
+    
+    for (const deck of decks) {
+      const isPublic = deck.is_public ?? true;
+      const groupAccessEnabled = deck.group_access_enabled ?? false;
+      
+      if (isPublic && !groupAccessEnabled) {
+        // Public deck without group access control - accessible to all
+        accessibleDecks.push(deck);
+      } else if (groupAccessEnabled) {
+        // Group access enabled - check if user has explicit access
+        const { data: accessData, error } = await supabase
+          .from('deck_user_access')
+          .select('user_id')
+          .eq('deck_id', deck.id)
+          .eq('user_id', userId)
+          .single();
+        
+        if (!error && accessData) {
+          accessibleDecks.push(deck);
+        }
+        // If no access found and group access is enabled, deck is not accessible
+      }
+      // If deck is not public and no group access enabled, it's not accessible to regular users
+    }
+    
+    return accessibleDecks;
+  } catch (error) {
+    console.error('Error filtering accessible decks:', error);
+    // On error, return only public decks without group access as fallback
+    return decks.filter(deck => 
+      deck.is_public === true && deck.group_access_enabled === false
+    );
+  }
+}
+
+// Check access to a single deck
+async function checkSingleDeckAccess(deck: any, userId?: string): Promise<boolean> {
+  if (!userId) {
+    // For unauthenticated users, only public decks without group access
+    return deck.is_public === true && deck.group_access_enabled === false;
+  }
+
+  try {
+    // Check if user is admin or superuser (both can access all decks)
+    const isAdmin = await isUserAdmin(userId); // This includes both admin and superuser roles
+    if (isAdmin) {
+      return true; // Admins and superusers can access everything
+    }
+
+    const isPublic = deck.is_public ?? true;
+    const groupAccessEnabled = deck.group_access_enabled ?? false;
+    
+    if (isPublic && !groupAccessEnabled) {
+      // Public deck without group access control - accessible to all
+      return true;
+    } else if (groupAccessEnabled) {
+      // Group access enabled - check if user has explicit access
+      const { data: accessData, error } = await supabase
+        .from('deck_user_access')
+        .select('user_id')
+        .eq('deck_id', deck.id)
+        .eq('user_id', userId)
+        .single();
+      
+      return !error && !!accessData;
+    }
+    
+    // If deck is not public and no group access enabled, not accessible
+    return false;
+  } catch (error) {
+    console.error('Error checking single deck access:', error);
+    // On error, only allow public decks without group access as fallback
+    return deck.is_public === true && deck.group_access_enabled === false;
+  }
+}
+
 // Get deck metadata only (without cards) for dashboard - OLD VERSION
 export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[]> {
   try {
@@ -221,9 +315,8 @@ export async function getDeckMetadata(userId?: string): Promise<DeckDisplayInfo[
       return [];
     }
 
-    // For now, disable access control to fix loading issue
-    // TODO: Re-enable once database schema is updated
-    const accessibleDecks = decks;
+    // Filter decks based on access control
+    const accessibleDecks = await filterAccessibleDecks(decks, userId);
 
     // Get card counts for each deck (much faster than loading all cards)
     const deckMetadata: DeckDisplayInfo[] = await Promise.all(
@@ -402,6 +495,22 @@ export async function getDecks(userId?: string): Promise<Deck[]> {
 // Get cards for a specific deck (for lazy loading)
 export async function getDeckCards(deckId: string, userId?: string): Promise<Card[]> {
   try {
+    // First check if user has access to this deck
+    const { data: deck, error: deckError } = await supabase
+      .from('decks')
+      .select('*')
+      .eq('id', deckId)
+      .single();
+
+    if (deckError || !deck) {
+      return [];
+    }
+
+    const hasAccess = await checkSingleDeckAccess(deck, userId);
+    if (!hasAccess) {
+      return [];
+    }
+
     // Fetch cards for this deck
     const { data: cards, error: cardsError } = await supabase
       .from('cards')
@@ -686,16 +795,11 @@ export async function getDeckById(id: string, userId?: string): Promise<Deck | u
       return undefined;
     }
 
-    // Check access for regular users (commented out until DB is updated)
-    // if (userId) {
-    //   const isAdmin = await isUserAdmin(userId);
-    //   if (!isAdmin) {
-    //     const hasAccess = await checkDeckAccess(id, userId);
-    //     if (!hasAccess) {
-    //       return undefined;
-    //     }
-    //   }
-    // }
+    // Check access control
+    const hasAccess = await checkSingleDeckAccess(deck, userId);
+    if (!hasAccess) {
+      return undefined;
+    }
 
     // Fetch cards for this deck
     const { data: cards, error: cardsError } = await supabase

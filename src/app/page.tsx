@@ -159,15 +159,18 @@ function Dashboard() {
         // Find the earliest next review time across all decks
         let earliestReviewTime: Date | null = null;
         displayDecks.forEach(deck => {
-            if (deck.nextReviewTime && (!earliestReviewTime || deck.nextReviewTime < earliestReviewTime)) {
-                earliestReviewTime = deck.nextReviewTime;
+            if (deck.nextReviewTime) {
+                const reviewTime = new Date(deck.nextReviewTime);
+                if (!earliestReviewTime || reviewTime < earliestReviewTime) {
+                    earliestReviewTime = reviewTime;
+                }
             }
         });
 
         if (!earliestReviewTime) return;
 
         const now = new Date();
-        const timeUntilReview = earliestReviewTime.getTime() - now.getTime();
+        const timeUntilReview = (earliestReviewTime as Date).getTime() - now.getTime();
 
         // Don't set timer for past reviews
         if (timeUntilReview <= 0) {

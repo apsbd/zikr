@@ -7,6 +7,7 @@ import ClientWrapper from '@/components/ClientWrapper';
 import { ThemeProvider } from '@/components/theme-provider';
 import NativeAppEnhancements from '@/components/NativeAppEnhancements';
 import IOSChromeFixProvider from '@/components/IOSChromeFixProvider';
+import AppUpdateNotification from '@/components/AppUpdateNotification';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -142,6 +143,7 @@ export default function RootLayout({
                             <NativeAppEnhancements />
                             {children}
                             <PWAInstaller />
+                            <AppUpdateNotification />
                         </ClientWrapper>
                     </AuthProvider>
                 </ThemeProvider>

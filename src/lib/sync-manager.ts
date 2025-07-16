@@ -64,7 +64,7 @@ class SyncManager {
   }
 
   // Initialize - first time sync from database
-  async initialize(userId: string): Promise<void> {
+  async initialize(userId: string, showUI: boolean = true): Promise<void> {
     if (this.isSyncing) return;
     
     const data = this.loadLocalData(userId);
@@ -79,8 +79,10 @@ class SyncManager {
     this.isSyncing = true;
     
     try {
-      // Dispatch syncing event
-      window.dispatchEvent(new CustomEvent('sync-started'));
+      // Dispatch syncing event (only if UI should be shown)
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-started'));
+      }
       
       // First, sync any pending progress to database
       if (data?.pendingProgress) {
@@ -143,16 +145,20 @@ class SyncManager {
       // Mark as initialized
       this.isInitialized = true;
       
-      // Dispatch sync complete event
-      window.dispatchEvent(new CustomEvent('sync-completed'));
+      // Dispatch sync complete event (only if UI should be shown)
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-completed'));
+      }
       
     } catch (error) {
-      // Dispatch sync error event
-      window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
+      // Dispatch sync error event (only if UI should be shown)
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
+      }
       
-      // Retry in 5 minutes
+      // Retry in 5 minutes (without UI to avoid spam)
       setTimeout(() => {
-        this.initialize(userId);
+        this.initialize(userId, false);
       }, 5 * 60 * 1000);
     } finally {
       this.isSyncing = false;
@@ -168,8 +174,8 @@ class SyncManager {
     try {
       const data = this.loadLocalData(userId);
       if (!data) {
-        // No local data, do full sync
-        await this.initialize(userId);
+        // No local data, do full sync (without UI)
+        await this.initialize(userId, false);
         return;
       }
       
@@ -341,19 +347,21 @@ class SyncManager {
   }
 
   // Push progress then pull fresh data
-  async pushThenPull(userId: string): Promise<void> {
+  async pushThenPull(userId: string, showUI: boolean = true): Promise<void> {
     if (this.isSyncing) return;
     
     this.isSyncing = true;
     
     try {
-      // Dispatch syncing event
-      window.dispatchEvent(new CustomEvent('sync-started'));
+      // Dispatch syncing event (only if UI should be shown)
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-started'));
+      }
       
       const data = this.loadLocalData(userId);
       if (!data) {
-        // No local data, do full sync
-        await this.initialize(userId);
+        // No local data, do full sync (without UI)
+        await this.initialize(userId, false);
         return;
       }
       
@@ -410,12 +418,16 @@ class SyncManager {
       this.scheduleNextSync(userId);
       
       // Notify components
-      window.dispatchEvent(new CustomEvent('sync-completed'));
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-completed'));
+      }
       window.dispatchEvent(new CustomEvent('data-updated'));
       
     } catch (error) {
-      // Dispatch sync error event
-      window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
+      // Dispatch sync error event (only if UI should be shown)
+      if (showUI) {
+        window.dispatchEvent(new CustomEvent('sync-error', { detail: { error } }));
+      }
       
     } finally {
       this.isSyncing = false;
@@ -423,11 +435,11 @@ class SyncManager {
   }
 
   // Force full re-sync (clears local data and re-downloads everything)
-  async forceFullSync(userId: string): Promise<void> {
+  async forceFullSync(userId: string, showUI: boolean = false): Promise<void> {
     const key = this.getStorageKey(userId);
     localStorage.removeItem(key);
     this.isInitialized = false;
-    await this.initialize(userId);
+    await this.initialize(userId, showUI);
   }
 
   // Stop sync

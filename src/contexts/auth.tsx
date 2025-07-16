@@ -38,6 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (session?.user) {
             try {
               await initializeUserProfile(session.user.id, session.user.email || '');
+              
+              // Force sync to get fresh data on session load (silent)
+              const { syncManager } = await import('@/lib/sync-manager');
+              syncManager.forceFullSync(session.user.id, false).catch(error => {
+                console.error('Background sync failed on session load:', error);
+              });
             } catch (profileError) {
               console.error('Error ensuring user profile for existing session:', profileError);
             }
@@ -63,6 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_IN' && session?.user) {
           try {
             await initializeUserProfile(session.user.id, session.user.email || '');
+            
+            // Force sync to get fresh data on sign in (show UI)
+            const { syncManager } = await import('@/lib/sync-manager');
+            syncManager.forceFullSync(session.user.id, true).catch(error => {
+              console.error('Background sync failed on sign in:', error);
+            });
           } catch (error) {
             console.error('Error initializing user profile:', error);
           }
@@ -83,6 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!error && data.user) {
       try {
         await initializeUserProfile(data.user.id, data.user.email || '');
+        
+        // Force sync to get fresh data for new user (show UI)
+        const { syncManager } = await import('@/lib/sync-manager');
+        syncManager.forceFullSync(data.user.id, true).catch(error => {
+          console.error('Background sync failed after signup:', error);
+        });
       } catch (profileError) {
         console.error('Error initializing user profile after signup:', profileError);
         // Don't return this error as the signup itself was successful

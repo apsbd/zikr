@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "node scripts/update-version.js && next build",
+    "build:prod": "node scripts/update-version.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "update-version": "node scripts/update-version.js"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.9",
@@ -17,11 +19,16 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
     "next": "15.3.5",
+    "next-pwa": "^5.6.0",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.1",
-    "ts-fsrs": "^5.2.1"
+    "ts-fsrs": "^5.2.1",
+    "workbox-precaching": "^7.3.0",
+    "workbox-routing": "^7.3.0",
+    "workbox-strategies": "^7.3.0",
+    "workbox-webpack-plugin": "^7.3.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
