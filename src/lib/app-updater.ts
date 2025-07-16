@@ -51,7 +51,8 @@ class AppUpdater {
     const storedVersion = localStorage.getItem(this.VERSION_KEY);
     const storedBuildTime = localStorage.getItem(this.BUILD_TIME_KEY);
     
-    if (storedVersion !== this.CURRENT_VERSION || storedBuildTime !== this.BUILD_TIME) {
+    // Only check version, not build time, to avoid infinite reloads
+    if (storedVersion && storedVersion !== this.CURRENT_VERSION) {
       console.log('App version updated, clearing caches...');
       await this.clearAppCache();
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
@@ -59,6 +60,13 @@ class AppUpdater {
       
       // Force reload to get new content
       window.location.reload();
+    } else if (!storedVersion) {
+      // First time loading, just store the version without reloading
+      localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
+      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
+    } else {
+      // Same version, just update build time silently
+      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
     }
   }
 
