@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import PWAInstaller from '@/components/PWAInstaller';
 import { AuthProvider } from '@/contexts/auth';
+import { SyncStatusProvider } from '@/contexts/sync-status';
 import ClientWrapper from '@/components/ClientWrapper';
 import { ThemeProvider } from '@/components/theme-provider';
 import NativeAppEnhancements from '@/components/NativeAppEnhancements';
@@ -138,13 +139,15 @@ export default function RootLayout({
                     enableSystem={false}
                     storageKey='theme'>
                     <AuthProvider>
-                        <ClientWrapper>
-                            <IOSChromeFixProvider />
-                            <NativeAppEnhancements />
-                            {children}
-                            <PWAInstaller />
-                            <AppUpdateNotification />
-                        </ClientWrapper>
+                        <SyncStatusProvider>
+                            <ClientWrapper>
+                                <IOSChromeFixProvider />
+                                <NativeAppEnhancements />
+                                {children}
+                                <PWAInstaller />
+                                <AppUpdateNotification />
+                            </ClientWrapper>
+                        </SyncStatusProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </body>

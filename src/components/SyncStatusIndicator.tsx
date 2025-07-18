@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSyncStatus } from '@/lib/offline/hooks';
+import { useSyncStatus } from '@/contexts/sync-status';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, CheckCircle, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
@@ -17,7 +17,15 @@ export function SyncStatusIndicator({
   showPersistent = false,
   className = ''
 }: SyncStatusIndicatorProps) {
-  const { syncStatus, error, refreshSyncStatus, retryFailedSync } = useSyncStatus();
+  const { 
+    isOnline, 
+    isFullSyncRunning, 
+    failedChanges, 
+    pendingChanges,
+    lastSuccessfulSync,
+    error, 
+    retryFailedSync 
+  } = useSyncStatus();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -28,17 +36,17 @@ export function SyncStatusIndicator({
 
     // Only show during auth flows or when there are issues
     const shouldShow = showDuringAuth || 
-                     syncStatus.isFullSyncRunning || 
-                     syncStatus.failedChanges > 0 || 
-                     !syncStatus.isOnline;
+                     isFullSyncRunning || 
+                     failedChanges > 0 || 
+                     !isOnline;
     
     setIsVisible(shouldShow);
-  }, [showDuringAuth, showPersistent, syncStatus]);
+  }, [showDuringAuth, showPersistent, isFullSyncRunning, failedChanges, isOnline]);
 
   if (!isVisible) return null;
 
   const renderSyncStatus = () => {
-    if (syncStatus.isFullSyncRunning) {
+    if (isFullSyncRunning) {
       return (
         <div className="flex items-center space-x-3">
           <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
@@ -54,7 +62,7 @@ export function SyncStatusIndicator({
       );
     }
 
-    if (!syncStatus.isOnline) {
+    if (!isOnline) {
       return (
         <div className="flex items-center space-x-3">
           <WifiOff className="w-5 h-5 text-amber-600" />
@@ -70,14 +78,14 @@ export function SyncStatusIndicator({
       );
     }
 
-    if (syncStatus.failedChanges > 0) {
+    if (failedChanges > 0) {
       return (
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-3">
             <AlertCircle className="w-5 h-5 text-red-600" />
             <div>
               <p className="text-sm font-medium text-red-700">
-                Sync failed for {syncStatus.failedChanges} items
+                Sync failed for {failedChanges} items
               </p>
               <p className="text-xs text-red-600">
                 Check your connection and try again
@@ -97,13 +105,13 @@ export function SyncStatusIndicator({
       );
     }
 
-    if (syncStatus.pendingChanges > 0) {
+    if (pendingChanges > 0) {
       return (
         <div className="flex items-center space-x-3">
           <Clock className="w-5 h-5 text-yellow-600" />
           <div>
             <p className="text-sm font-medium text-yellow-700">
-              {syncStatus.pendingChanges} changes pending sync
+              {pendingChanges} changes pending sync
             </p>
             <p className="text-xs text-yellow-600">
               Will sync automatically when online
@@ -113,8 +121,8 @@ export function SyncStatusIndicator({
       );
     }
 
-    if (syncStatus.lastSuccessfulSync) {
-      const lastSync = new Date(syncStatus.lastSuccessfulSync);
+    if (lastSuccessfulSync) {
+      const lastSync = new Date(lastSuccessfulSync);
       const now = new Date();
       const diffMs = now.getTime() - lastSync.getTime();
       const diffMins = Math.floor(diffMs / 60000);
@@ -138,10 +146,10 @@ export function SyncStatusIndicator({
   };
 
   const getStatusColor = () => {
-    if (syncStatus.isFullSyncRunning) return 'bg-blue-50 border-blue-200';
-    if (!syncStatus.isOnline) return 'bg-amber-50 border-amber-200';
-    if (syncStatus.failedChanges > 0) return 'bg-red-50 border-red-200';
-    if (syncStatus.pendingChanges > 0) return 'bg-yellow-50 border-yellow-200';
+    if (isFullSyncRunning) return 'bg-blue-50 border-blue-200';
+    if (!isOnline) return 'bg-amber-50 border-amber-200';
+    if (failedChanges > 0) return 'bg-red-50 border-red-200';
+    if (pendingChanges > 0) return 'bg-yellow-50 border-yellow-200';
     return 'bg-green-50 border-green-200';
   };
 
@@ -158,9 +166,9 @@ export function SyncStatusIndicator({
 }
 
 export function NetworkStatusBadge() {
-  const { syncStatus } = useSyncStatus();
+  const { isOnline } = useSyncStatus();
   
-  if (syncStatus.isOnline) {
+  if (isOnline) {
     return (
       <div className="flex items-center space-x-1 text-green-600">
         <Wifi className="w-4 h-4" />
@@ -178,22 +186,22 @@ export function NetworkStatusBadge() {
 }
 
 export function SyncProgressBar() {
-  const { syncStatus } = useSyncStatus();
+  const { isFullSyncRunning, pendingChanges } = useSyncStatus();
   
-  if (!syncStatus.isFullSyncRunning && syncStatus.pendingChanges === 0) {
+  if (!isFullSyncRunning && pendingChanges === 0) {
     return null;
   }
 
-  const progress = syncStatus.isFullSyncRunning ? 50 : 100;
+  const progress = isFullSyncRunning ? 50 : 100;
   
   return (
     <div className="w-full">
       <div className="flex justify-between text-xs text-muted-foreground mb-1">
         <span>
-          {syncStatus.isFullSyncRunning ? 'Syncing...' : 'Pending sync'}
+          {isFullSyncRunning ? 'Syncing...' : 'Pending sync'}
         </span>
         <span>
-          {syncStatus.pendingChanges} items
+          {pendingChanges} items
         </span>
       </div>
       <Progress value={progress} className="h-1" />

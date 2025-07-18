@@ -105,6 +105,19 @@ const withPWA = require('next-pwa')({
           maxAgeSeconds: 24 * 60 * 60 // 24 hours
         }
       }
+    },
+    // Handle Supabase API calls for offline functionality
+    {
+      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+      handler: 'NetworkOnly',
+      options: {
+        backgroundSync: {
+          name: 'supabase-sync',
+          options: {
+            maxRetentionTime: 24 * 60 // Retry for max of 24 hours
+          }
+        }
+      }
     }
   ]
 });

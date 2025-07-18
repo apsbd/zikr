@@ -10,17 +10,17 @@ import { cleanupOldLocalStorageData } from '@/lib/migration';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
 import { useAuth } from '@/contexts/auth';
+import { useSyncStatus } from '@/contexts/sync-status';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import LandingPage from '@/components/LandingPage';
 
 function Dashboard() {
     const router = useRouter();
     const { user } = useAuth();
+    const { isOnline, isFullSyncRunning, refreshStatus } = useSyncStatus();
     const [displayDecks, setDisplayDecks] = useState<DeckWithStats[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isInitialized, setIsInitialized] = useState(false);
 
     const loadDecks = async () => {
@@ -41,16 +41,6 @@ function Dashboard() {
         }
     };
 
-    // Network status handler
-    const handleNetworkChange = (online: boolean) => {
-        setIsOffline(!online);
-        if (online) {
-            setError(null);
-            loadDecks(); // Refresh data when back online
-        } else {
-            setError('Working offline - changes will sync when connected');
-        }
-    };
 
     useEffect(() => {
         const initializeOfflineService = async () => {
@@ -61,7 +51,6 @@ function Dashboard() {
                 await offlineService.init();
                 
                 // Perform login sync (background auth on page refresh)
-                setIsSyncing(true);
                 const syncResult = await offlineService.login(user.id, false); // false = background auth
                 
                 if (!syncResult.success) {
@@ -75,24 +64,17 @@ function Dashboard() {
                 
                 // Load decks immediately after login completes
                 await loadDecks();
+                
+                // Refresh sync status
+                await refreshStatus();
             } catch (err) {
                 console.error('Failed to initialize offline service:', err);
                 setError('Failed to initialize app - working offline');
                 setIsInitialized(true);
-            } finally {
-                setIsSyncing(false);
             }
         };
         
         initializeOfflineService();
-        
-        // Set up network change listener only once
-        const removeNetworkListener = offlineService.onNetworkChange(handleNetworkChange);
-        
-        // Cleanup function
-        return () => {
-            removeNetworkListener();
-        };
     }, [user?.id]); // Only depend on user.id, not the entire user object
     
 
@@ -146,7 +128,7 @@ function Dashboard() {
                 style={{ height: 'calc(100vh - 80px )' }}>
                 <div className='w-full sm:max-w-4xl sm:mx-auto py-8 px-2 sm:px-4 lg:px-8'>
                     {/* Sync Status - Only show during login */}
-                    {isSyncing && (
+                    {isFullSyncRunning && (
                         <div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
                             <div className='flex items-center justify-center'>
                                 <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
@@ -163,7 +145,7 @@ function Dashboard() {
                     )}
                     
                     {/* Offline Status */}
-                    {isOffline && (
+                    {!isOnline && (
                         <div className='mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg'>
                             <div className='flex items-center justify-center'>
                                 <div className='w-5 h-5 text-amber-600 mr-3'>
@@ -184,7 +166,7 @@ function Dashboard() {
                     )}
 
                     {/* Error State */}
-                    {error && !isOffline && (
+                    {error && isOnline && (
                         <div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
                             <div className='text-center'>
                                 <p className='text-sm font-medium text-red-700'>
@@ -223,7 +205,7 @@ function Dashboard() {
                             <p className='text-muted-foreground'>
                                 No decks available
                             </p>
-                            {isOffline && (
+                            {!isOnline && (
                                 <p className='text-sm text-muted-foreground mt-2'>
                                     Connect to internet to sync your decks
                                 </p>

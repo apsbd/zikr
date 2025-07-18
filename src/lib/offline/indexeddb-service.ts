@@ -382,6 +382,8 @@ export class IndexedDBService {
       nextReviewTime = futureDueTimes[0];
     }
 
+    console.log(`📊 getDeckWithStats for ${deck.title}: ${dueCount} due cards from ${cards.length} total`);
+
     return {
       ...deck,
       card_count: cards.length,
@@ -433,18 +435,55 @@ export class IndexedDBService {
 
   async getDueCards(userId: string, deckId?: string): Promise<OfflineCard[]> {
     const now = new Date().toISOString();
-    const dueProgress = await this.getByIndex<OfflineUserProgress>(
-      STORE_NAMES.USER_PROGRESS,
-      'user_due',
-      IDBKeyRange.bound([userId, ''], [userId, now])
-    );
-
-    const cardIds = new Set(dueProgress.map(p => p.card_id));
+    
+    // Get all cards for the deck
     const allCards = deckId 
       ? await this.getByIndex<OfflineCard>(STORE_NAMES.CARDS, 'deck_id', deckId)
       : await this.getAll<OfflineCard>(STORE_NAMES.CARDS);
 
-    return allCards.filter(card => cardIds.has(card.id));
+    console.log(`🎴 getDueCards: Found ${allCards.length} total cards for deck ${deckId || 'all'}`);
+
+    // Get all user progress for these cards
+    const userProgress = await this.getByIndex<OfflineUserProgress>(
+      STORE_NAMES.USER_PROGRESS,
+      'user_id',
+      userId
+    );
+
+    // Create a map of card progress
+    const progressMap = new Map(userProgress.map(p => [p.card_id, p]));
+
+    // Get deck to check daily limits
+    const deck = deckId ? await this.get<OfflineDeck>(STORE_NAMES.DECKS, deckId) : null;
+    const dailyNewLimit = deck?.daily_new_limit || 20;
+
+    let newCardsIncluded = 0;
+    let dueReviewCards = 0;
+    
+    // Filter cards that are due
+    const dueCards = allCards.filter(card => {
+      const progress = progressMap.get(card.id);
+      
+      if (!progress) {
+        // New card - include up to daily limit
+        if (newCardsIncluded < dailyNewLimit) {
+          newCardsIncluded++;
+          return true;
+        }
+        return false;
+      }
+      
+      // Card with progress - check if due
+      if (progress.due <= now) {
+        dueReviewCards++;
+        return true;
+      }
+      return false;
+    });
+
+    console.log(`🎴 getDueCards result: ${dueCards.length} due cards (${newCardsIncluded} new, ${dueReviewCards} reviews)`);
+    
+    return dueCards;
   }
 
   async close(): Promise<void> {

@@ -15,6 +15,7 @@ import { reviewCard, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import { useAuth } from '@/contexts/auth';
+import { useSyncStatus } from '@/contexts/sync-status';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface StudyPageProps {
@@ -26,17 +27,14 @@ interface StudyPageProps {
 export default function StudyPage({ params }: StudyPageProps) {
     const [deckId, setDeckId] = useState<string | undefined>();
     const [session, setSession] = useState<StudySession | null>(null);
-    const [currentBatch, setCurrentBatch] = useState(0);
     const [currentDeck, setCurrentDeck] = useState<any>(null);
     const [studyData, setStudyData] = useState<CardType[]>([]);
-    const [totalCardsStudied, setTotalCardsStudied] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [retryCount, setRetryCount] = useState(0);
     const router = useRouter();
     const { user } = useAuth();
+    const { isOnline, isFullSyncRunning } = useSyncStatus();
 
     const loadStudyData = async (deckId: string, isRetry = false) => {
         if (!user) return;
@@ -53,13 +51,11 @@ export default function StudyPage({ params }: StudyPageProps) {
             
             // Perform login sync if online (background auth)
             if (navigator.onLine) {
-                setIsSyncing(true);
                 try {
                     await offlineService.login(user.id, false);
                 } catch (syncError) {
                     console.warn('Sync failed, continuing with offline data:', syncError);
                 }
-                setIsSyncing(false);
             }
             
             // Get deck metadata from offline service
@@ -67,7 +63,7 @@ export default function StudyPage({ params }: StudyPageProps) {
             setCurrentDeck(deck);
             
             if (!deck) {
-                setError(isOffline ? 'Deck not available offline. Please connect to internet to sync.' : 'Deck not found');
+                setError(!isOnline ? 'Deck not available offline. Please connect to internet to sync.' : 'Deck not found');
                 return;
             }
             
@@ -77,40 +73,15 @@ export default function StudyPage({ params }: StudyPageProps) {
             
         } catch (err) {
             console.error('Failed to load study data:', err);
-            const errorMessage = isOffline 
+            const errorMessage = !isOnline 
                 ? 'Failed to load study data offline. Please connect to internet to sync your data.' 
                 : 'Failed to load study data. Please try again.';
             setError(errorMessage);
         } finally {
             setIsLoading(false);
-            setIsSyncing(false);
         }
     };
 
-    // Network status monitoring
-    React.useEffect(() => {
-        const handleOnline = () => {
-            setIsOffline(false);
-            setError(null);
-            // Auto-retry loading if there was an error
-            if (error && deckId) {
-                loadStudyData(deckId, true);
-            }
-        };
-        
-        const handleOffline = () => {
-            setIsOffline(true);
-            setIsSyncing(false);
-        };
-        
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, [error, deckId]);
 
     React.useEffect(() => {
         params.then((resolvedParams) => {
@@ -126,39 +97,15 @@ export default function StudyPage({ params }: StudyPageProps) {
                 return;
             }
 
-            // Load cards in batches of 10
-            const batchSize = 10;
-            const cardsToLoad = studyData.slice(0, batchSize);
-
-            // Reset total cards studied for new session
-            setTotalCardsStudied(0);
-            
+            // Load all due cards at once
             setSession({
                 deckId: deckId,
-                cards: cardsToLoad,
+                cards: studyData,
                 currentIndex: 0,
                 completed: false
             });
         }
     }, [studyData, deckId, session]);
-
-    // Load more cards when approaching the end of current batch
-    React.useEffect(() => {
-        if (session && studyData && session.currentIndex >= session.cards.length - 3) {
-            const batchSize = 10;
-            const totalLoadedCards = totalCardsStudied + session.cards.length;
-            const nextBatchStart = totalLoadedCards;
-            const nextBatchEnd = nextBatchStart + batchSize;
-            const nextBatch = studyData.slice(nextBatchStart, nextBatchEnd);
-            
-            if (nextBatch.length > 0) {
-                setSession(prev => prev ? {
-                    ...prev,
-                    cards: [...prev.cards, ...nextBatch]
-                } : null);
-            }
-        }
-    }, [session, studyData, totalCardsStudied]);
 
     const handleRetry = async () => {
         if (deckId) {
@@ -169,10 +116,10 @@ export default function StudyPage({ params }: StudyPageProps) {
 
     React.useEffect(() => {
         // Only redirect to home if it's a critical error and we're not offline
-        if (error && !isOffline && !deckId) {
+        if (error && isOnline && !deckId) {
             router.push('/');
         }
-    }, [error, router, isOffline, deckId]);
+    }, [error, router, isOnline, deckId]);
 
     const handleRating = async (rating: Rating) => {
         if (!session || !studyData) return;
@@ -208,8 +155,7 @@ export default function StudyPage({ params }: StudyPageProps) {
 
             const nextIndex = session.currentIndex + 1;
             if (nextIndex >= session.cards.length) {
-                // Add the completed batch to total cards studied
-                setTotalCardsStudied(prev => prev + session.cards.length);
+                // All cards have been studied
                 setSession({ ...session, completed: true });
             } else {
                 setSession({ ...session, currentIndex: nextIndex });
@@ -221,7 +167,6 @@ export default function StudyPage({ params }: StudyPageProps) {
             
             const nextIndex = session.currentIndex + 1;
             if (nextIndex >= session.cards.length) {
-                setTotalCardsStudied(prev => prev + session.cards.length);
                 setSession({ ...session, completed: true });
             } else {
                 setSession({ ...session, currentIndex: nextIndex });
@@ -242,12 +187,9 @@ export default function StudyPage({ params }: StudyPageProps) {
             setStudyData(cards);
             
             if (cards.length > 0) {
-                // Reset total cards studied for new session
-                setTotalCardsStudied(0);
-                
                 setSession({
                     deckId: deckId,
-                    cards: cards.slice(0, 10), // Load first batch
+                    cards: cards,
                     currentIndex: 0,
                     completed: false
                 });
@@ -265,11 +207,11 @@ export default function StudyPage({ params }: StudyPageProps) {
                         <BackButton href='/' />
                     </div>
                     <div className='text-center py-12'>
-                        {isSyncing && (
+                        {isFullSyncRunning && (
                             <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
                         )}
                         <p className='text-muted-foreground'>
-                            {isSyncing ? 'Syncing data...' : 'Loading study session...'}
+                            {isFullSyncRunning ? 'Syncing data...' : 'Loading study session...'}
                         </p>
                     </div>
                 </div>
@@ -286,7 +228,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                     </div>
                     
                     {/* Offline Status */}
-                    {isOffline && (
+                    {!isOnline && (
                         <div className='mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg'>
                             <div className='flex items-center justify-center'>
                                 <div className='w-5 h-5 text-amber-600 mr-3'>
@@ -424,11 +366,11 @@ export default function StudyPage({ params }: StudyPageProps) {
     }
 
     const currentCard = session.cards[session.currentIndex];
-    // Calculate progress based on total due cards, not loaded cards
-    const totalDueCards = studyData.length;
-    const overallProgress = totalCardsStudied + session.currentIndex + 1;
-    const progressPercentage = totalDueCards > 0 
-        ? (overallProgress / totalDueCards) * 100 
+    // Calculate progress based on total session cards
+    const totalCards = session.cards.length;
+    const currentProgress = session.currentIndex + 1;
+    const progressPercentage = totalCards > 0 
+        ? (currentProgress / totalCards) * 100 
         : 0;
 
     return (
@@ -461,7 +403,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                         </div>
                         
                         {/* Offline Status */}
-                        {isOffline && (
+                        {!isOnline && (
                             <div className='max-w-2xl mx-auto mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
                                 <div className='flex items-center justify-center'>
                                     <div className='w-4 h-4 text-amber-600 mr-2'>
@@ -482,7 +424,7 @@ export default function StudyPage({ params }: StudyPageProps) {
                         )}
                         
                         {/* Sync Status */}
-                        {isSyncing && (
+                        {isFullSyncRunning && (
                             <div className='max-w-2xl mx-auto mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
                                 <div className='flex items-center justify-center'>
                                     <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
@@ -507,11 +449,9 @@ export default function StudyPage({ params }: StudyPageProps) {
                         <StudyCard
                             card={currentCard}
                             onRate={handleRating}
-                            isLast={
-                                overallProgress === totalDueCards
-                            }
-                            currentIndex={overallProgress - 1}
-                            totalCards={totalDueCards}
+                            isLast={currentProgress === totalCards}
+                            currentIndex={session.currentIndex}
+                            totalCards={totalCards}
                         />
                     </div>
                 </div>

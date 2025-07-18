@@ -38,7 +38,7 @@ export class SyncEngine {
     await this.db.init();
     
     if (typeof Worker !== 'undefined' && 'serviceWorker' in navigator) {
-      this.initializeServiceWorker();
+      this.setupServiceWorkerListener();
     }
     
     this.setupEventListeners();
@@ -61,18 +61,14 @@ export class SyncEngine {
     }
   }
 
-  private async initializeServiceWorker(): Promise<void> {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'SYNC_REQUIRED') {
-          this.triggerSync();
-        }
-      });
-    } catch (error) {
-      console.error('Service worker registration failed:', error);
-    }
+  private async setupServiceWorkerListener(): Promise<void> {
+    // Don't register SW here - app-updater handles SW registration
+    // Just set up listener for messages from the service worker
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'SYNC_REQUIRED') {
+        this.triggerSync();
+      }
+    });
   }
 
   async performFullSync(userId: string): Promise<SyncResult> {
@@ -113,13 +109,6 @@ export class SyncEngine {
         this.fetchRemoteDeckUserAccess(userId)
       ]);
 
-      console.log('📊 Sync fetch results:', {
-        decks: remoteDecks.length,
-        cards: remoteCards.length,
-        progress: remoteProgress.length,
-        profiles: remoteProfiles.length,
-        access: remoteAccess.length
-      });
 
       const syncResults = await Promise.allSettled([
         this.syncEntity(STORE_NAMES.DECKS, remoteDecks),

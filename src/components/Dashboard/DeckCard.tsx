@@ -127,9 +127,9 @@ export function DeckCard({ deck, onStudy, onReloadData }: DeckCardProps) {
                 {/* Due now indicator */}
                 {dueCount > 0 && (
                     <div className='pt-2 border-t border-border'>
-                        <div className='flex items-center gap-2 text-sm text-yellow-600'>
-                            <Clock className='w-4 h-4' />
-                            <span>Due now: {dueCount}</span>
+                        <div className='flex items-center gap-2 text-sm'>
+                            <Clock className='w-4 h-4 text-yellow-500' />
+                            <span className='text-yellow-500 font-medium'>Due now: {dueCount}</span>
                         </div>
                     </div>
                 )}

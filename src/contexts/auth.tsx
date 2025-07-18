@@ -39,11 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               await initializeUserProfile(session.user.id, session.user.email || '');
               
-              // Background sync on session load (not explicit login)
-              const { offlineService } = await import('@/lib/offline');
-              offlineService.login(session.user.id, false).catch(error => {
-                console.error('Background sync failed on session load:', error);
-              });
+              // Don't sync here - the dashboard component will handle initial sync
+              // This prevents duplicate syncs on page refresh
             } catch (profileError) {
               console.error('Error ensuring user profile for existing session:', profileError);
             }
