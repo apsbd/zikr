@@ -8,7 +8,21 @@ const withPWA = require('next-pwa')({
   fallbacks: {
     document: '/offline.html' // Fallback page for offline document requests
   },
+  customWorkerDir: 'public',
+  importScripts: ['sw-custom.js'],
   runtimeCaching: [
+    // Cache the app shell
+    {
+      urlPattern: /\/app-shell\.html$/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'app-shell',
+        expiration: {
+          maxEntries: 1,
+          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+        }
+      }
+    },
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
       handler: 'CacheFirst',
@@ -134,13 +148,19 @@ const withPWA = require('next-pwa')({
               }
               return null;
             }
+          },
+          {
+            handlerDidError: async ({ request }) => {
+              // Return app shell for study pages when offline
+              return caches.match('/app-shell.html');
+            }
           }
         ],
         expiration: {
           maxEntries: 20,
           maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
         },
-        networkTimeoutSeconds: 3
+        networkTimeoutSeconds: 2 // Faster fallback when offline
       }
     },
     // Handle Supabase API calls for offline functionality

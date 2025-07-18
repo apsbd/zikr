@@ -63,6 +63,11 @@ export default function StudyPage({ params }: StudyPageProps) {
             setCurrentDeck(deck);
             
             if (!deck) {
+                // Don't show error immediately if offline, try to wait for initialization
+                if (!isOnline && !isRetry) {
+                    setTimeout(() => loadStudyData(deckId, true), 1000);
+                    return;
+                }
                 setError(!isOnline ? 'Deck not available offline. Please connect to internet to sync.' : 'Deck not found');
                 return;
             }
@@ -73,6 +78,11 @@ export default function StudyPage({ params }: StudyPageProps) {
             
         } catch (err) {
             console.error('Failed to load study data:', err);
+            // If offline and first attempt, retry once after a delay
+            if (!isOnline && !isRetry) {
+                setTimeout(() => loadStudyData(deckId, true), 1000);
+                return;
+            }
             const errorMessage = !isOnline 
                 ? 'Failed to load study data offline. Please connect to internet to sync your data.' 
                 : 'Failed to load study data. Please try again.';
@@ -175,7 +185,8 @@ export default function StudyPage({ params }: StudyPageProps) {
     };
 
     const handleReturnToDashboard = () => {
-        router.push('/');
+        // Force a refresh by adding a timestamp query param
+        router.push('/?refresh=' + Date.now());
     };
 
     const handleStudyAgain = async () => {

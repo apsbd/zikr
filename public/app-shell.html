@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Zikr - Loading...</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .loader {
+            text-align: center;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .offline-badge {
+            background: #ff6b6b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            margin-top: 16px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <div class="spinner"></div>
+        <h1>Loading Study Session...</h1>
+        <p>Your study data is available offline</p>
+        <div class="offline-badge" id="offline-indicator" style="display: none;">Offline Mode</div>
+    </div>
+    <script>
+        // Check if we're offline
+        if (!navigator.onLine) {
+            document.getElementById('offline-indicator').style.display = 'inline-block';
+        }
+        
+        // Reload the page to trigger the app load
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
+    </script>
+</body>
+</html>

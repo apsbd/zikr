@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
 import { offlineService } from '@/lib/offline';
@@ -16,6 +16,7 @@ import LandingPage from '@/components/LandingPage';
 
 function Dashboard() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user } = useAuth();
     const { isOnline, isFullSyncRunning, refreshStatus } = useSyncStatus();
     const [displayDecks, setDisplayDecks] = useState<DeckWithStats[]>([]);
@@ -77,6 +78,15 @@ function Dashboard() {
         initializeOfflineService();
     }, [user?.id]); // Only depend on user.id, not the entire user object
     
+    // Refresh when the refresh param changes (when returning from study)
+    useEffect(() => {
+        if (!isInitialized || !user) return;
+        
+        const refreshParam = searchParams.get('refresh');
+        if (refreshParam) {
+            loadDecks();
+        }
+    }, [searchParams, isInitialized, user]);
 
     // Force refresh when returning to dashboard
     useEffect(() => {
@@ -97,9 +107,20 @@ function Dashboard() {
         
         document.addEventListener('visibilitychange', handleVisibilityChange);
         
+        // Listen for navigation events (when returning from study page)
+        const handlePopState = () => {
+            loadDecks();
+        };
+        
+        window.addEventListener('popstate', handlePopState);
+        
+        // Also load when the router changes
+        loadDecks();
+        
         return () => {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('popstate', handlePopState);
         };
     }, [user, isInitialized]);
 
