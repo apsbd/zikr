@@ -128,6 +128,23 @@ export default function AuthForm() {
           </Button>
         </form>
 
+        {mode === 'signin' && (
+          <div className="border-t pt-4">
+            <p className="text-xs text-muted-foreground mb-2">Quick Login (Development)</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full text-sm"
+              onClick={() => {
+                setEmail('mohiuddin.007@gmail.com');
+                setPassword('M@51n366!!!');
+              }}
+            >
+              Login as Superuser
+            </Button>
+          </div>
+        )}
+
         <div className="space-y-2 text-center">
           {mode === 'signin' && (
             <>

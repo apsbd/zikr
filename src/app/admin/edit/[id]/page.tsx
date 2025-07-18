@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType } from '@/types';
 import {
-    getDeckById,
     saveDeck,
     initializeUserProfile,
-    isUserAdmin
+    isUserAdmin,
+    getDeckById
 } from '@/lib/database';
 import { initializeFSRSCard, getCardStats } from '@/lib/fsrs';
 import {
@@ -100,22 +100,24 @@ export default function EditDeck() {
     }, [user, loading, router]);
 
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && user) {
             const loadDeck = async () => {
                 try {
-                    // Admin should see all decks without user filtering
-                    const savedDeck = await getDeckById(deckId);
-                    if (savedDeck) {
-                        setDeck(savedDeck);
+                    // Admin area uses direct database access, not offline service
+                    const deckData = await getDeckById(deckId, user.id);
+                    
+                    if (deckData) {
+                        setDeck(deckData);
                         setDeckMeta({
-                            title: savedDeck.title,
-                            author: savedDeck.author,
-                            description: savedDeck.description,
-                            dailyNewLimit: savedDeck.dailyNewLimit || 20,
-                            groupAccessEnabled: savedDeck.groupAccessEnabled || false,
-                            isPublic: savedDeck.isPublic ?? true
+                            title: deckData.title,
+                            author: deckData.author,
+                            description: deckData.description,
+                            dailyNewLimit: deckData.dailyNewLimit || 20,
+                            groupAccessEnabled: deckData.groupAccessEnabled || false,
+                            isPublic: deckData.isPublic ?? true
                         });
                     } else {
+                        console.error('Deck not found or access denied');
                         router.push('/admin');
                     }
                 } catch (error) {
@@ -125,7 +127,7 @@ export default function EditDeck() {
             };
             loadDeck();
         }
-    }, [isAuthenticated, deckId, router]);
+    }, [isAuthenticated, deckId, router, user]);
 
     const validateDeckMeta = () => {
         const newErrors = {

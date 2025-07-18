@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
-import { syncManager } from '@/lib/sync-manager';
-import { localStorageService } from '@/lib/local-storage';
+import { offlineService } from '@/lib/offline';
+import type { DeckWithStats } from '@/lib/offline';
 import { cleanupOldLocalStorageData } from '@/lib/migration';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
 import UserProfile from '@/components/Auth/UserProfile';
@@ -16,10 +16,12 @@ import LandingPage from '@/components/LandingPage';
 function Dashboard() {
     const router = useRouter();
     const { user } = useAuth();
-    const [displayDecks, setDisplayDecks] = useState<DeckDisplayInfo[]>([]);
+    const [displayDecks, setDisplayDecks] = useState<DeckWithStats[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     const loadDecks = async () => {
         if (!user) return;
@@ -28,109 +30,76 @@ function Dashboard() {
             setIsLoading(true);
             setError(null);
             
-            // Check if data is initialized
-            if (!localStorageService.isInitialized(user.id)) {
-                setIsSyncing(true);
-                // Initialize sync manager (first time sync)
-                await syncManager.initialize(user.id);
-                setIsSyncing(false);
-            }
-            
-            // Load decks from localStorage (instant)
-            const decks = localStorageService.getDecks(user.id);
+            // Always try to load from offline storage first (instant)
+            const decks = await offlineService.getDecks();
             setDisplayDecks(decks);
         } catch (err) {
+            console.error('Failed to load decks:', err);
             setError('Failed to load decks');
         } finally {
             setIsLoading(false);
-            setIsSyncing(false);
         }
     };
 
-    // Push progress then pull fresh data
-    const pushThenPull = async () => {
-        if (!user) return;
-        setIsSyncing(true);
-        try {
-            await syncManager.pushThenPull(user.id);
-            const decks = localStorageService.getDecks(user.id);
-            setDisplayDecks(decks);
-        } catch (err) {
-            // Error handled by sync manager events
-        } finally {
-            setIsSyncing(false);
-        }
-    };
-
-    // Force full resync (for debugging)
-    const forceFullResync = async () => {
-        if (!user) return;
-        setIsSyncing(true);
-        try {
-            await syncManager.forceFullSync(user.id);
-            const decks = localStorageService.getDecks(user.id);
-            setDisplayDecks(decks);
-        } catch (err) {
-            // Error handled by sync manager events
-        } finally {
-            setIsSyncing(false);
+    // Network status handler
+    const handleNetworkChange = (online: boolean) => {
+        setIsOffline(!online);
+        if (online) {
+            setError(null);
+            loadDecks(); // Refresh data when back online
+        } else {
+            setError('Working offline - changes will sync when connected');
         }
     };
 
     useEffect(() => {
-        loadDecks();
-        
-        // Initialize sync manager when component mounts
-        if (user) {
-            syncManager.initialize(user.id);
-        }
-        
-        // Listen for data updates and sync events
-        const handleDataUpdate = () => {
-            if (user) {
-                const decks = localStorageService.getDecks(user.id);
-                setDisplayDecks(decks);
+        const initializeOfflineService = async () => {
+            if (!user || isInitialized) return;
+            
+            try {
+                // Initialize offline service
+                await offlineService.init();
+                
+                // Perform login sync (background auth on page refresh)
+                setIsSyncing(true);
+                const syncResult = await offlineService.login(user.id, false); // false = background auth
+                
+                if (!syncResult.success) {
+                    console.warn('Login sync had issues:', syncResult);
+                    if (syncResult.failed_count > 0) {
+                        setError('Some data may not be up to date');
+                    }
+                }
+                
+                setIsInitialized(true);
+                
+                // Load decks immediately after login completes
+                await loadDecks();
+            } catch (err) {
+                console.error('Failed to initialize offline service:', err);
+                setError('Failed to initialize app - working offline');
+                setIsInitialized(true);
+            } finally {
+                setIsSyncing(false);
             }
         };
         
-        const handleSyncStarted = () => {
-            setIsSyncing(true);
-        };
+        initializeOfflineService();
         
-        const handleSyncCompleted = () => {
-            setIsSyncing(false);
-            if (user) {
-                const decks = localStorageService.getDecks(user.id);
-                setDisplayDecks(decks);
-            }
-        };
-        
-        const handleSyncError = (event: any) => {
-            setIsSyncing(false);
-            setError('Sync failed - working offline');
-        };
-        
-        window.addEventListener('progress-updated', handleDataUpdate);
-        window.addEventListener('data-updated', handleDataUpdate);
-        window.addEventListener('sync-started', handleSyncStarted);
-        window.addEventListener('sync-completed', handleSyncCompleted);
-        window.addEventListener('sync-error', handleSyncError);
+        // Set up network change listener only once
+        const removeNetworkListener = offlineService.onNetworkChange(handleNetworkChange);
         
         // Cleanup function
         return () => {
-            if (user) {
-                syncManager.stopSync();
-            }
-            window.removeEventListener('progress-updated', handleDataUpdate);
-            window.removeEventListener('data-updated', handleDataUpdate);
-            window.removeEventListener('sync-started', handleSyncStarted);
-            window.removeEventListener('sync-completed', handleSyncCompleted);
-            window.removeEventListener('sync-error', handleSyncError);
+            removeNetworkListener();
         };
-    }, [user]);
+    }, [user?.id]); // Only depend on user.id, not the entire user object
+    
 
     // Force refresh when returning to dashboard
     useEffect(() => {
+        if (!isInitialized || !user) return;
+        
         const handleFocus = () => {
             loadDecks();
         };
@@ -150,52 +119,19 @@ function Dashboard() {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [user]);
+    }, [user, isInitialized]);
 
-    // Auto-refresh based on next review time
+    // Auto-refresh for due cards
     useEffect(() => {
-        if (!user || displayDecks.length === 0) return;
+        if (!user || !isInitialized || displayDecks.length === 0) return;
 
-        // Find the earliest next review time across all decks
-        let earliestReviewTime: Date | null = null;
-        displayDecks.forEach(deck => {
-            if (deck.nextReviewTime) {
-                const reviewTime = new Date(deck.nextReviewTime);
-                if (!earliestReviewTime || reviewTime < earliestReviewTime) {
-                    earliestReviewTime = reviewTime;
-                }
-            }
-        });
-
-        if (!earliestReviewTime) return;
-
-        const now = new Date();
-        const timeUntilReview = (earliestReviewTime as Date).getTime() - now.getTime();
-
-        // Don't set timer for past reviews
-        if (timeUntilReview <= 0) {
-            loadDecks();
-            return;
-        }
-
-        // Set refresh interval based on time until next review
-        let refreshInterval: number;
-        if (timeUntilReview <= 60 * 1000) { // Less than 1 minute
-            refreshInterval = 1000; // Refresh every second
-        } else if (timeUntilReview <= 10 * 60 * 1000) { // Less than 10 minutes
-            refreshInterval = 10 * 1000; // Refresh every 10 seconds
-        } else if (timeUntilReview <= 60 * 60 * 1000) { // Less than 1 hour
-            refreshInterval = 60 * 1000; // Refresh every minute
-        } else {
-            refreshInterval = 5 * 60 * 1000; // Refresh every 5 minutes
-        }
-
+        // Refresh every 5 minutes to update due card counts
         const intervalId = setInterval(() => {
             loadDecks();
-        }, refreshInterval);
+        }, 5 * 60 * 1000);
 
         return () => clearInterval(intervalId);
-    }, [user, displayDecks]);
+    }, [user, isInitialized, displayDecks]);
 
 
     const handleStudy = (deckId: string) => {
@@ -209,17 +145,38 @@ function Dashboard() {
                 className='h-screen w-full'
                 style={{ height: 'calc(100vh - 80px )' }}>
                 <div className='w-full sm:max-w-4xl sm:mx-auto py-8 px-2 sm:px-4 lg:px-8'>
-                    {/* Sync Status */}
+                    {/* Sync Status - Only show during login */}
                     {isSyncing && (
                         <div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
                             <div className='flex items-center justify-center'>
                                 <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
                                 <div className='text-center'>
                                     <p className='text-sm font-medium text-blue-700'>
-                                        Syncing data with server...
+                                        Syncing your data...
                                     </p>
                                     <p className='text-xs text-blue-600'>
-                                        This may take a moment on first sync
+                                        This happens once when you login
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Offline Status */}
+                    {isOffline && (
+                        <div className='mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg'>
+                            <div className='flex items-center justify-center'>
+                                <div className='w-5 h-5 text-amber-600 mr-3'>
+                                    <svg fill='currentColor' viewBox='0 0 20 20'>
+                                        <path fillRule='evenodd' d='M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
+                                    </svg>
+                                </div>
+                                <div className='text-center'>
+                                    <p className='text-sm font-medium text-amber-700'>
+                                        Working offline
+                                    </p>
+                                    <p className='text-xs text-amber-600'>
+                                        Changes will sync when reconnected
                                     </p>
                                 </div>
                             </div>
@@ -227,14 +184,14 @@ function Dashboard() {
                     )}
 
                     {/* Error State */}
-                    {error && (
-                        <div className='mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg'>
+                    {error && !isOffline && (
+                        <div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
                             <div className='text-center'>
-                                <p className='text-sm font-medium text-yellow-700'>
+                                <p className='text-sm font-medium text-red-700'>
                                     {error}
                                 </p>
-                                <p className='text-xs text-yellow-600'>
-                                    App is working offline
+                                <p className='text-xs text-red-600'>
+                                    Some features may not work properly
                                 </p>
                             </div>
                         </div>
@@ -247,6 +204,7 @@ function Dashboard() {
                                 key={deck.id}
                                 deck={deck}
                                 onStudy={handleStudy}
+                                onReloadData={loadDecks}
                             />
                         ))}
                     </div>
@@ -255,16 +213,21 @@ function Dashboard() {
                         <div className='text-center py-12'>
                             <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
                             <p className='text-muted-foreground'>
-                                {isSyncing ? 'Syncing data for first time...' : 'Loading decks...'}
+                                Loading decks...
                             </p>
                         </div>
                     )}
 
-                    {!isLoading && !isSyncing && displayDecks.length === 0 && (
+                    {!isLoading && displayDecks.length === 0 && (
                         <div className='text-center py-12'>
                             <p className='text-muted-foreground'>
                                 No decks available
                             </p>
+                            {isOffline && (
+                                <p className='text-sm text-muted-foreground mt-2'>
+                                    Connect to internet to sync your decks
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>

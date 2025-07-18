@@ -39,9 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
               await initializeUserProfile(session.user.id, session.user.email || '');
               
-              // Force sync to get fresh data on session load (silent)
-              const { syncManager } = await import('@/lib/sync-manager');
-              syncManager.forceFullSync(session.user.id, false).catch(error => {
+              // Background sync on session load (not explicit login)
+              const { offlineService } = await import('@/lib/offline');
+              offlineService.login(session.user.id, false).catch(error => {
                 console.error('Background sync failed on session load:', error);
               });
             } catch (profileError) {
@@ -70,10 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             await initializeUserProfile(session.user.id, session.user.email || '');
             
-            // Force sync to get fresh data on sign in (show UI)
-            const { syncManager } = await import('@/lib/sync-manager');
-            syncManager.forceFullSync(session.user.id, true).catch(error => {
-              console.error('Background sync failed on sign in:', error);
+            // Explicit login sync (user clicked login button)
+            const { offlineService } = await import('@/lib/offline');
+            offlineService.login(session.user.id, true).catch(error => {
+              console.error('Login sync failed:', error);
             });
           } catch (error) {
             console.error('Error initializing user profile:', error);
@@ -96,10 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await initializeUserProfile(data.user.id, data.user.email || '');
         
-        // Force sync to get fresh data for new user (show UI)
-        const { syncManager } = await import('@/lib/sync-manager');
-        syncManager.forceFullSync(data.user.id, true).catch(error => {
-          console.error('Background sync failed after signup:', error);
+        // Explicit login sync for new user (signup is like login)
+        const { offlineService } = await import('@/lib/offline');
+        offlineService.login(data.user.id, true).catch(error => {
+          console.error('Signup sync failed:', error);
         });
       } catch (profileError) {
         console.error('Error initializing user profile after signup:', profileError);
@@ -119,14 +119,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    // Stop sync and force sync before signing out
+    // Sync and clear data before signing out
     if (user) {
       try {
-        const { syncManager } = await import('@/lib/sync-manager');
-        const { localStorageService } = await import('@/lib/local-storage');
-        await syncManager.forceSyncNow(user.id);
-        syncManager.stopSync();
-        localStorageService.clearUserData(user.id);
+        const { offlineService } = await import('@/lib/offline');
+        await offlineService.logout();
       } catch (error) {
         console.error('Error during sync cleanup:', error);
       }

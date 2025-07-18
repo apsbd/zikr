@@ -8,8 +8,9 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Deck, Card as CardType, Rating, StudySession } from '@/types';
-import { localStorageService } from '@/lib/local-storage';
-import { syncManager } from '@/lib/sync-manager';
+import type { OfflineUserProgress } from '@/lib/offline/types';
+import { SyncStatus } from '@/lib/offline/indexeddb-schema';
+import { offlineService } from '@/lib/offline';
 import { reviewCard, getCardStats } from '@/lib/fsrs';
 import { CheckCircle, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/Auth/ProtectedRoute';
@@ -32,44 +33,84 @@ export default function StudyPage({ params }: StudyPageProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [retryCount, setRetryCount] = useState(0);
     const router = useRouter();
     const { user } = useAuth();
 
-    const loadStudyData = async (deckId: string) => {
+    const loadStudyData = async (deckId: string, isRetry = false) => {
         if (!user) return;
         
         try {
             setIsLoading(true);
-            setError(null);
+            if (!isRetry) {
+                setError(null);
+                setRetryCount(0);
+            }
             
-            // Ensure data is initialized (wait for sync if needed)
-            if (!localStorageService.isInitialized(user.id)) {
+            // Initialize offline service
+            await offlineService.init();
+            
+            // Perform login sync if online (background auth)
+            if (navigator.onLine) {
                 setIsSyncing(true);
-                await syncManager.initialize(user.id);
+                try {
+                    await offlineService.login(user.id, false);
+                } catch (syncError) {
+                    console.warn('Sync failed, continuing with offline data:', syncError);
+                }
                 setIsSyncing(false);
             }
             
-            // Get deck metadata from localStorage
-            const deckMetadata = localStorageService.getDecks(user.id);
-            const deck = deckMetadata.find(d => d.id === deckId);
+            // Get deck metadata from offline service
+            const deck = await offlineService.getDeck(deckId);
             setCurrentDeck(deck);
             
             if (!deck) {
-                setError('Deck not found');
+                setError(isOffline ? 'Deck not available offline. Please connect to internet to sync.' : 'Deck not found');
                 return;
             }
             
-            // Get study cards from localStorage (only due cards)
-            const cards = localStorageService.getStudyCards(deckId, user.id);
+            // Get study cards from offline service (only due cards)
+            const cards = await offlineService.getDueCards(deckId);
             setStudyData(cards);
             
         } catch (err) {
-            setError('Failed to load study data');
+            console.error('Failed to load study data:', err);
+            const errorMessage = isOffline 
+                ? 'Failed to load study data offline. Please connect to internet to sync your data.' 
+                : 'Failed to load study data. Please try again.';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
             setIsSyncing(false);
         }
     };
+
+    // Network status monitoring
+    React.useEffect(() => {
+        const handleOnline = () => {
+            setIsOffline(false);
+            setError(null);
+            // Auto-retry loading if there was an error
+            if (error && deckId) {
+                loadStudyData(deckId, true);
+            }
+        };
+        
+        const handleOffline = () => {
+            setIsOffline(true);
+            setIsSyncing(false);
+        };
+        
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, [error, deckId]);
 
     React.useEffect(() => {
         params.then((resolvedParams) => {
@@ -119,11 +160,19 @@ export default function StudyPage({ params }: StudyPageProps) {
         }
     }, [session, studyData, totalCardsStudied]);
 
+    const handleRetry = async () => {
+        if (deckId) {
+            setRetryCount(prev => prev + 1);
+            await loadStudyData(deckId, true);
+        }
+    };
+
     React.useEffect(() => {
-        if (error) {
+        // Only redirect to home if it's a critical error and we're not offline
+        if (error && !isOffline && !deckId) {
             router.push('/');
         }
-    }, [error, router]);
+    }, [error, router, isOffline, deckId]);
 
     const handleRating = async (rating: Rating) => {
         if (!session || !studyData) return;
@@ -132,9 +181,29 @@ export default function StudyPage({ params }: StudyPageProps) {
             const currentCard = session.cards[session.currentIndex];
             const updatedCard = reviewCard(currentCard, rating);
 
-            // Save progress to localStorage (will sync to database automatically)
+            // Save progress to offline service
             if (user) {
-                syncManager.saveCardProgress(updatedCard.id, user.id, updatedCard.fsrsData);
+                const progressData: OfflineUserProgress = {
+                    id: crypto.randomUUID(), // Generate new UUID, will be replaced if record exists
+                    user_id: user.id,
+                    card_id: updatedCard.id,
+                    state: updatedCard.fsrsData.state,
+                    difficulty: updatedCard.fsrsData.difficulty,
+                    stability: updatedCard.fsrsData.stability,
+                    retrievability: 0, // Default value
+                    due: updatedCard.fsrsData.due.toISOString(),
+                    elapsed_days: updatedCard.fsrsData.elapsed_days,
+                    scheduled_days: updatedCard.fsrsData.scheduled_days,
+                    reps: updatedCard.fsrsData.reps,
+                    lapses: updatedCard.fsrsData.lapses,
+                    last_review: updatedCard.fsrsData.last_review?.toISOString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    sync_status: SyncStatus.PENDING,
+                    local_changes: true
+                };
+                
+                await offlineService.updateUserProgress(progressData);
             }
 
             const nextIndex = session.currentIndex + 1;
@@ -146,7 +215,17 @@ export default function StudyPage({ params }: StudyPageProps) {
                 setSession({ ...session, currentIndex: nextIndex });
             }
         } catch (error) {
-            // Error handling rating - continue with session
+            console.error('Error saving progress:', error);
+            // Continue with session even if save fails (offline support)
+            // The progress will be saved locally and synced when online
+            
+            const nextIndex = session.currentIndex + 1;
+            if (nextIndex >= session.cards.length) {
+                setTotalCardsStudied(prev => prev + session.cards.length);
+                setSession({ ...session, completed: true });
+            } else {
+                setSession({ ...session, currentIndex: nextIndex });
+            }
         }
     };
 
@@ -159,7 +238,7 @@ export default function StudyPage({ params }: StudyPageProps) {
 
         // Reload study data to get fresh cards
         try {
-            const cards = localStorageService.getStudyCards(deckId, user.id);
+            const cards = await offlineService.getDueCards(deckId);
             setStudyData(cards);
             
             if (cards.length > 0) {
@@ -193,6 +272,70 @@ export default function StudyPage({ params }: StudyPageProps) {
                             {isSyncing ? 'Syncing data...' : 'Loading study session...'}
                         </p>
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className='min-h-screen bg-background p-4'>
+                <div className='max-w-2xl mx-auto'>
+                    <div className='mb-4'>
+                        <BackButton href='/' />
+                    </div>
+                    
+                    {/* Offline Status */}
+                    {isOffline && (
+                        <div className='mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg'>
+                            <div className='flex items-center justify-center'>
+                                <div className='w-5 h-5 text-amber-600 mr-3'>
+                                    <svg fill='currentColor' viewBox='0 0 20 20'>
+                                        <path fillRule='evenodd' d='M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
+                                    </svg>
+                                </div>
+                                <div className='text-center'>
+                                    <p className='text-sm font-medium text-amber-700'>
+                                        Working offline
+                                    </p>
+                                    <p className='text-xs text-amber-600'>
+                                        Progress will sync when reconnected
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <Card className='max-w-md mx-auto'>
+                        <CardContent className='p-8 text-center'>
+                            <div className='w-16 h-16 text-destructive mx-auto mb-4'>
+                                <svg fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
+                                </svg>
+                            </div>
+                            <h2 className='text-2xl font-bold mb-2 text-destructive'>
+                                Error Loading Study Data
+                            </h2>
+                            <p className='text-muted-foreground mb-6'>
+                                {error}
+                            </p>
+                            <div className='space-y-3'>
+                                <Button
+                                    onClick={handleRetry}
+                                    className='w-full'
+                                    disabled={retryCount >= 3}>
+                                    <RotateCcw className='w-4 h-4 mr-2' />
+                                    {retryCount >= 3 ? 'Max retries reached' : `Retry ${retryCount > 0 ? `(${retryCount}/3)` : ''}`}
+                                </Button>
+                                <Button
+                                    onClick={handleReturnToDashboard}
+                                    variant='outline'
+                                    className='w-full'>
+                                    Return to Dashboard
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );
@@ -316,6 +459,41 @@ export default function StudyPage({ params }: StudyPageProps) {
                                 {currentDeck?.title}
                             </h2>
                         </div>
+                        
+                        {/* Offline Status */}
+                        {isOffline && (
+                            <div className='max-w-2xl mx-auto mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg'>
+                                <div className='flex items-center justify-center'>
+                                    <div className='w-4 h-4 text-amber-600 mr-2'>
+                                        <svg fill='currentColor' viewBox='0 0 20 20'>
+                                            <path fillRule='evenodd' d='M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
+                                        </svg>
+                                    </div>
+                                    <div className='text-center'>
+                                        <p className='text-sm font-medium text-amber-700'>
+                                            Working offline
+                                        </p>
+                                        <p className='text-xs text-amber-600'>
+                                            Progress will sync when reconnected
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Sync Status */}
+                        {isSyncing && (
+                            <div className='max-w-2xl mx-auto mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
+                                <div className='flex items-center justify-center'>
+                                    <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
+                                    <div className='text-center'>
+                                        <p className='text-sm font-medium text-blue-700'>
+                                            Syncing data...
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         
                         <div className='max-w-2xl mx-auto mt-2'>
                             <Progress

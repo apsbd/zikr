@@ -69,7 +69,7 @@ ${allLogs}
     const loadDecks = async () => {
         try {
             // Admin should see all decks without user filtering
-            const savedDecks = await getDecks();
+            const savedDecks = await getDecks(user?.id);
             setDecks(savedDecks);
         } catch (error) {
             console.error('Error loading decks:', error);
