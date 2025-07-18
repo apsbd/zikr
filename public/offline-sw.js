@@ -25,7 +25,8 @@ self.addEventListener('install', (event) => {
       return cache.addAll([
         '/',
         '/offline.html',
-        '/app-shell.html'
+        '/app-shell.html',
+        '/offline-study.html'
       ]).catch(err => {
         console.error('[Offline SW] Failed to cache assets:', err);
       });
@@ -43,55 +44,51 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // Skip handling if not a navigation request
+  // Only handle navigation requests
   if (request.mode !== 'navigate') return;
   
-  // Handle study page navigation requests
-  if (url.pathname.startsWith('/study/')) {
-    console.log(`[Offline SW] Intercepting study page request: ${url.pathname}`);
+  // Handle study page navigation requests when offline
+  if (url.pathname.startsWith('/study/') && !navigator.onLine) {
+    console.log(`[Offline SW] Handling offline study page request: ${url.pathname}`);
     
     event.respondWith(
-      // Try network first
-      fetch(request)
-        .then(response => {
-          // Cache successful responses
-          if (response.ok) {
-            const responseToCache = response.clone();
-            caches.open('study-pages').then(cache => {
-              cache.put(request, responseToCache);
-            });
+      (async () => {
+        // First, try to get the exact page from cache
+        const cachedPage = await caches.match(request, { ignoreSearch: true });
+        if (cachedPage) {
+          console.log('[Offline SW] Serving cached study page');
+          return cachedPage;
+        }
+        
+        // Try to serve the root page (Next.js will handle client routing)
+        const rootPage = await caches.match('/', { ignoreSearch: true });
+        if (rootPage) {
+          console.log('[Offline SW] Serving root page for client-side routing');
+          // Return the root page but preserve the URL
+          return new Response(rootPage.body, {
+            status: 200,
+            statusText: 'OK',
+            headers: rootPage.headers
+          });
+        }
+        
+        // Try the offline study page
+        const offlineStudy = await caches.match('/offline-study.html');
+        if (offlineStudy) {
+          console.log('[Offline SW] Serving offline study page');
+          return offlineStudy;
+        }
+        
+        // Last resort - basic offline response
+        console.log('[Offline SW] No cached content found');
+        return new Response(
+          '<html><body><h1>Offline</h1><p>Please go online to load this page first.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html' }
           }
-          return response;
-        })
-        .catch(async () => {
-          console.log(`[Offline SW] Network failed for: ${url.pathname}, trying offline fallbacks`);
-          
-          // Try exact match from cache first
-          const cachedResponse = await caches.match(request, { ignoreSearch: true });
-          if (cachedResponse) {
-            console.log('[Offline SW] Found exact cached page');
-            return cachedResponse;
-          }
-          
-          // Try to get cached root page (Next.js app shell)
-          const rootResponse = await caches.match('/', { ignoreSearch: true });
-          if (rootResponse) {
-            console.log('[Offline SW] Returning cached root for client-side routing');
-            return rootResponse;
-          }
-          
-          // Try the app shell
-          const appShellResponse = await caches.match('/app-shell.html');
-          if (appShellResponse) {
-            console.log('[Offline SW] Returning app shell');
-            return appShellResponse;
-          }
-          
-          // Last resort - offline page
-          console.log('[Offline SW] Returning offline page as last resort');
-          const offlineResponse = await caches.match('/offline.html');
-          return offlineResponse || new Response('Offline', { status: 503 });
-        })
+        );
+      })()
     );
   }
 });

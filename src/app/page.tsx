@@ -32,6 +32,12 @@ function Dashboard() {
             setIsLoading(true);
             setError(null);
             
+            // Small delay when refreshing to ensure we get the latest data
+            const refreshParam = searchParams.get('refresh');
+            if (refreshParam) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
             // Always try to load from offline storage first (instant)
             const decks = await offlineService.getDecks();
             setDisplayDecks(decks);

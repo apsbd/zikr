@@ -179,12 +179,22 @@ export class IndexedDBService {
         if (!skipSync) {
           await this.addToSyncQueue(tx, OperationType.UPDATE, storeName, data.id, entity);
         }
-        resolve(entity);
       };
       
       request.onerror = () => {
         console.error(`Failed to put entity in ${storeName}:`, request.error);
         reject(request.error);
+      };
+
+      // Wait for transaction to complete before resolving
+      tx.oncomplete = () => {
+        console.log(`Transaction complete for ${storeName}:`, entity.id);
+        resolve(entity);
+      };
+
+      tx.onerror = () => {
+        console.error(`Transaction failed for ${storeName}:`, tx.error);
+        reject(tx.error);
       };
     });
   }
@@ -368,6 +378,8 @@ export class IndexedDBService {
         // Check if card is due for study
         if (progress.due <= now) {
           dueCount++;
+        } else {
+          console.log(`Card ${card.id} not due: ${progress.due} > ${now}`);
         }
         
         // Collect all due times for next review calculation

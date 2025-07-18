@@ -131,12 +131,12 @@ const withPWA = require('next-pwa')({
         networkTimeoutSeconds: 3 // Fallback to cache quickly when offline
       }
     },
-    // Specifically cache study pages for offline access
+    // Cache the main app pages
     {
-      urlPattern: /^\/study\/.*/i,
-      handler: 'StaleWhileRevalidate',
+      urlPattern: /^\/(study|admin|login)?.*/i,
+      handler: 'NetworkFirst',
       options: {
-        cacheName: 'study-pages',
+        cacheName: 'app-pages',
         plugins: [
           {
             cacheWillUpdate: async ({ response }) => {
@@ -145,32 +145,13 @@ const withPWA = require('next-pwa')({
               }
               return null;
             }
-          },
-          {
-            handlerDidError: async ({ request }) => {
-              // Try to return the app shell for study pages when offline
-              try {
-                const appShellResponse = await caches.match('/app-shell.html');
-                if (appShellResponse) {
-                  return appShellResponse;
-                }
-                // If app shell not found, try the offline page
-                const offlineResponse = await caches.match('/offline.html');
-                if (offlineResponse) {
-                  return offlineResponse;
-                }
-              } catch (error) {
-                console.error('Study page fallback error:', error);
-              }
-              // Return a valid response
-              return new Response('Offline', { status: 503 });
-            }
           }
         ],
         expiration: {
-          maxEntries: 20,
+          maxEntries: 50,
           maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-        }
+        },
+        networkTimeoutSeconds: 3
       }
     },
     // Handle Supabase API calls for offline functionality

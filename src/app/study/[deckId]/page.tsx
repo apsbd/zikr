@@ -160,6 +160,8 @@ function StudyPageContent({ params }: StudyPageProps) {
                     local_changes: true
                 };
                 
+                console.log(`Saving progress for card ${updatedCard.id}: due date = ${progressData.due}, rating = ${rating}`);
+                
                 // Wait for progress to be saved before continuing
                 await offlineService.updateUserProgress(progressData);
                 
@@ -189,8 +191,8 @@ function StudyPageContent({ params }: StudyPageProps) {
     };
 
     const handleReturnToDashboard = async () => {
-        // Small delay to ensure any pending saves are complete
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Increased delay to ensure IndexedDB writes are fully complete
+        await new Promise(resolve => setTimeout(resolve, 500));
         // Force a refresh by adding a timestamp query param
         router.push('/?refresh=' + Date.now());
     };
