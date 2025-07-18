@@ -100,7 +100,7 @@ const withPWA = require('next-pwa')({
     },
     {
       urlPattern: ({ request }) => request.destination === 'document',
-      handler: 'StaleWhileRevalidate',
+      handler: 'NetworkFirst',
       options: {
         cacheName: 'pages',
         plugins: [
@@ -114,9 +114,33 @@ const withPWA = require('next-pwa')({
           }
         ],
         expiration: {
-          maxEntries: 32,
+          maxEntries: 50,
           maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
+        },
+        networkTimeoutSeconds: 3 // Fallback to cache quickly when offline
+      }
+    },
+    // Specifically cache study pages for offline access
+    {
+      urlPattern: /^\/study\/.*/i,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'study-pages',
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200) {
+                return response;
+              }
+              return null;
+            }
+          }
+        ],
+        expiration: {
+          maxEntries: 20,
+          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+        },
+        networkTimeoutSeconds: 3
       }
     },
     // Handle Supabase API calls for offline functionality
