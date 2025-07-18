@@ -3,13 +3,10 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development', // Disable PWA in development
+  disable: false, // Enable PWA in all environments for offline testing
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic files
-  fallbacks: {
-    document: '/offline.html' // Fallback page for offline document requests
-  },
   customWorkerDir: 'public',
-  importScripts: ['sw-custom.js'],
+  importScripts: ['offline-sw.js', 'sw-custom.js'],
   runtimeCaching: [
     // Cache the app shell
     {
@@ -137,7 +134,7 @@ const withPWA = require('next-pwa')({
     // Specifically cache study pages for offline access
     {
       urlPattern: /^\/study\/.*/i,
-      handler: 'NetworkFirst',
+      handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'study-pages',
         plugins: [
@@ -151,16 +148,29 @@ const withPWA = require('next-pwa')({
           },
           {
             handlerDidError: async ({ request }) => {
-              // Return app shell for study pages when offline
-              return caches.match('/app-shell.html');
+              // Try to return the app shell for study pages when offline
+              try {
+                const appShellResponse = await caches.match('/app-shell.html');
+                if (appShellResponse) {
+                  return appShellResponse;
+                }
+                // If app shell not found, try the offline page
+                const offlineResponse = await caches.match('/offline.html');
+                if (offlineResponse) {
+                  return offlineResponse;
+                }
+              } catch (error) {
+                console.error('Study page fallback error:', error);
+              }
+              // Return a valid response
+              return new Response('Offline', { status: 503 });
             }
           }
         ],
         expiration: {
           maxEntries: 20,
           maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-        },
-        networkTimeoutSeconds: 2 // Faster fallback when offline
+        }
       }
     },
     // Handle Supabase API calls for offline functionality

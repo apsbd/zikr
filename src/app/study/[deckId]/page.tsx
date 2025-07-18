@@ -24,7 +24,7 @@ interface StudyPageProps {
     }>;
 }
 
-export default function StudyPage({ params }: StudyPageProps) {
+function StudyPageContent({ params }: StudyPageProps) {
     const [deckId, setDeckId] = useState<string | undefined>();
     const [session, setSession] = useState<StudySession | null>(null);
     const [currentDeck, setCurrentDeck] = useState<any>(null);
@@ -50,7 +50,7 @@ export default function StudyPage({ params }: StudyPageProps) {
             await offlineService.init();
             
             // Perform login sync if online (background auth)
-            if (navigator.onLine) {
+            if (navigator.onLine && isOnline) {
                 try {
                     await offlineService.login(user.id, false);
                 } catch (syncError) {
@@ -160,7 +160,11 @@ export default function StudyPage({ params }: StudyPageProps) {
                     local_changes: true
                 };
                 
+                // Wait for progress to be saved before continuing
                 await offlineService.updateUserProgress(progressData);
+                
+                // Small delay to ensure IndexedDB write is complete
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             const nextIndex = session.currentIndex + 1;
@@ -184,7 +188,9 @@ export default function StudyPage({ params }: StudyPageProps) {
         }
     };
 
-    const handleReturnToDashboard = () => {
+    const handleReturnToDashboard = async () => {
+        // Small delay to ensure any pending saves are complete
+        await new Promise(resolve => setTimeout(resolve, 200));
         // Force a refresh by adding a timestamp query param
         router.push('/?refresh=' + Date.now());
     };
@@ -386,89 +392,95 @@ export default function StudyPage({ params }: StudyPageProps) {
         : 0;
 
     return (
-        <ProtectedRoute>
-            <ScrollArea
-                className='h-screen w-full'
-                style={{ height: 'calc(100vh)' }}>
-                <div className='min-h-screen bg-background p-4'>
-                    <div className='w-full mb-6'>
-                        {/* Desktop layout - side by side */}
-                        <div className='hidden md:block'>
-                            <div className='relative flex items-center justify-center mb-2'>
-                                <div className='absolute left-0'>
-                                    <BackButton href='/' />
-                                </div>
-                                <h2 className='text-lg font-semibold text-center'>
-                                    {currentDeck?.title}
-                                </h2>
-                            </div>
-                        </div>
-                        
-                        {/* Mobile layout - stacked */}
-                        <div className='md:hidden'>
-                            <div className='mb-2'>
+        <ScrollArea
+            className='h-screen w-full'
+            style={{ height: 'calc(100vh)' }}>
+            <div className='min-h-screen bg-background p-4'>
+                <div className='w-full mb-6'>
+                    {/* Desktop layout - side by side */}
+                    <div className='hidden md:block'>
+                        <div className='relative flex items-center justify-center mb-2'>
+                            <div className='absolute left-0'>
                                 <BackButton href='/' />
                             </div>
-                            <h2 className='text-base font-semibold text-center px-2'>
+                            <h2 className='text-lg font-semibold text-center'>
                                 {currentDeck?.title}
                             </h2>
                         </div>
-                        
-                        {/* Offline Status */}
-                        {!isOnline && (
-                            <div className='max-w-2xl mx-auto mb-4 relative overflow-hidden rounded-xl bg-gradient-to-r from-zinc-900/90 to-zinc-800/90 backdrop-blur-sm border border-zinc-700/50'>
-                                <div className='absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10'></div>
-                                <div className='relative px-4 py-3'>
-                                    <div className='flex items-center justify-center gap-2'>
-                                        <div className='flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20'>
-                                            <div className='w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse'></div>
-                                        </div>
-                                        <div className='text-center'>
-                                            <p className='text-xs font-medium text-zinc-100'>
-                                                Offline Mode
-                                            </p>
-                                            <p className='text-xs text-zinc-400'>
-                                                Progress saved locally
-                                            </p>
-                                        </div>
+                    </div>
+                    
+                    {/* Mobile layout - stacked */}
+                    <div className='md:hidden'>
+                        <div className='mb-2'>
+                            <BackButton href='/' />
+                        </div>
+                        <h2 className='text-base font-semibold text-center px-2'>
+                            {currentDeck?.title}
+                        </h2>
+                    </div>
+                    
+                    {/* Offline Status */}
+                    {!isOnline && (
+                        <div className='max-w-2xl mx-auto mb-4 relative overflow-hidden rounded-xl bg-gradient-to-r from-zinc-900/90 to-zinc-800/90 backdrop-blur-sm border border-zinc-700/50'>
+                            <div className='absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10'></div>
+                            <div className='relative px-4 py-3'>
+                                <div className='flex items-center justify-center gap-2'>
+                                    <div className='flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20'>
+                                        <div className='w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse'></div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* Sync Status */}
-                        {isFullSyncRunning && (
-                            <div className='max-w-2xl mx-auto mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
-                                <div className='flex items-center justify-center'>
-                                    <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
                                     <div className='text-center'>
-                                        <p className='text-sm font-medium text-blue-700'>
-                                            Syncing data...
+                                        <p className='text-xs font-medium text-zinc-100'>
+                                            Offline Mode
+                                        </p>
+                                        <p className='text-xs text-zinc-400'>
+                                            Progress saved locally
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                        )}
-                        
-                        <div className='max-w-2xl mx-auto mt-2'>
-                            <Progress
-                                value={progressPercentage}
-                                className='h-2'
-                            />
                         </div>
-                    </div>
-                    <div className='max-w-2xl mx-auto'>
-
-                        <StudyCard
-                            card={currentCard}
-                            onRate={handleRating}
-                            isLast={currentProgress === totalCards}
-                            currentIndex={session.currentIndex}
-                            totalCards={totalCards}
+                    )}
+                    
+                    {/* Sync Status */}
+                    {isFullSyncRunning && (
+                        <div className='max-w-2xl mx-auto mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg'>
+                            <div className='flex items-center justify-center'>
+                                <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
+                                <div className='text-center'>
+                                    <p className='text-sm font-medium text-blue-700'>
+                                        Syncing data...
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className='max-w-2xl mx-auto mt-2'>
+                        <Progress
+                            value={progressPercentage}
+                            className='h-2'
                         />
                     </div>
                 </div>
-            </ScrollArea>
+                <div className='max-w-2xl mx-auto'>
+
+                    <StudyCard
+                        card={currentCard}
+                        onRate={handleRating}
+                        isLast={currentProgress === totalCards}
+                        currentIndex={session.currentIndex}
+                        totalCards={totalCards}
+                    />
+                </div>
+            </div>
+        </ScrollArea>
+    );
+}
+
+export default function StudyPage({ params }: StudyPageProps) {
+    return (
+        <ProtectedRoute>
+            <StudyPageContent params={params} />
         </ProtectedRoute>
     );
 }

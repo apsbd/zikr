@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DeckCard } from '@/components/Dashboard/DeckCard';
 import { Deck, DeckDisplayInfo } from '@/types';
@@ -23,6 +23,7 @@ function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const loadDecksTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const loadDecks = async () => {
         if (!user) return;
@@ -40,6 +41,17 @@ function Dashboard() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Debounced version of loadDecks to prevent multiple rapid calls
+    const debouncedLoadDecks = () => {
+        if (loadDecksTimeoutRef.current) {
+            clearTimeout(loadDecksTimeoutRef.current);
+        }
+        
+        loadDecksTimeoutRef.current = setTimeout(() => {
+            loadDecks();
+        }, 300); // 300ms debounce
     };
 
 
@@ -84,6 +96,7 @@ function Dashboard() {
         
         const refreshParam = searchParams.get('refresh');
         if (refreshParam) {
+            // Use immediate load when explicitly refreshing
             loadDecks();
         }
     }, [searchParams, isInitialized, user]);
@@ -93,7 +106,7 @@ function Dashboard() {
         if (!isInitialized || !user) return;
         
         const handleFocus = () => {
-            loadDecks();
+            debouncedLoadDecks();
         };
 
         window.addEventListener('focus', handleFocus);
@@ -101,7 +114,7 @@ function Dashboard() {
         // Also refresh on window focus to get latest progress
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                loadDecks();
+                debouncedLoadDecks();
             }
         };
         
@@ -109,18 +122,22 @@ function Dashboard() {
         
         // Listen for navigation events (when returning from study page)
         const handlePopState = () => {
-            loadDecks();
+            debouncedLoadDecks();
         };
         
         window.addEventListener('popstate', handlePopState);
         
-        // Also load when the router changes
+        // Initial load
         loadDecks();
         
         return () => {
             window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('popstate', handlePopState);
+            // Clear timeout on cleanup
+            if (loadDecksTimeoutRef.current) {
+                clearTimeout(loadDecksTimeoutRef.current);
+            }
         };
     }, [user, isInitialized]);
 

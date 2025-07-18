@@ -535,6 +535,10 @@ export class OfflineService {
     return navigator.onLine;
   }
 
+  async getUserProfile(userId: string): Promise<any> {
+    return this.dataService.getUserProfile(userId);
+  }
+
   onNetworkChange(callback: (isOnline: boolean) => void): () => void {
     const handleOnline = () => callback(true);
     const handleOffline = () => callback(false);

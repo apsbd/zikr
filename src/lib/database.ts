@@ -1136,6 +1136,23 @@ export function getTimeIndicatorClass(date: Date): string {
 // Get user profile by user ID
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   try {
+    // Check if we're offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('Offline: Attempting to get user profile from offline storage');
+      
+      try {
+        const { offlineService } = await import('./offline');
+        const offlineProfile = await offlineService.getUserProfile(userId);
+        if (offlineProfile) {
+          return offlineProfile;
+        }
+      } catch (error) {
+        console.log('Could not retrieve offline profile:', error);
+      }
+      
+      // Return null if offline and no cached profile
+      return null;
+    }
     
     const { data, error } = await supabase
       .from('user_profiles')
@@ -1370,6 +1387,25 @@ export async function updateUserBanStatus(userId: string, isBanned: boolean): Pr
 // Check if user has admin privileges
 export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
+    // Check if we're offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('Offline: Checking admin status from offline storage');
+      
+      try {
+        const { offlineService } = await import('./offline');
+        const offlineProfile = await offlineService.getUserProfile(userId);
+        if (offlineProfile) {
+          const isAdmin = offlineProfile.role === 'admin' || offlineProfile.role === 'superuser';
+          return isAdmin;
+        }
+      } catch (error) {
+        console.log('Could not check offline admin status:', error);
+      }
+      
+      // Default to false if offline and no cached profile
+      return false;
+    }
+    
     const profile = await getUserProfile(userId);
     
     if (!profile) {
@@ -1404,6 +1440,33 @@ export async function isUserSuperuser(userId: string): Promise<boolean> {
 // Initialize user profile on first login
 export async function initializeUserProfile(userId: string, email: string): Promise<UserProfile | null> {
   try {
+    // Check if we're offline
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('Offline: Skipping user profile initialization');
+      
+      // Try to get profile from offline storage
+      try {
+        const { offlineService } = await import('./offline');
+        const offlineProfile = await offlineService.getUserProfile(userId);
+        if (offlineProfile) {
+          return offlineProfile;
+        }
+      } catch (error) {
+        console.log('Could not retrieve offline profile:', error);
+      }
+      
+      // Return a minimal profile object to prevent errors
+      return {
+        id: userId,
+        user_id: userId,
+        email,
+        role: email === 'mohiuddin.007@gmail.com' ? 'superuser' : 'user',
+        is_banned: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as UserProfile;
+    }
+
     // Check if profile already exists
     const existingProfile = await getUserProfile(userId);
     if (existingProfile) {

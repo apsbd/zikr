@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Zikr - Loading...</title>
+    <title>Zikr - Study Offline</title>
     <style>
         body {
             margin: 0;
@@ -40,6 +40,11 @@
             margin-top: 16px;
             display: inline-block;
         }
+        .error-message {
+            margin-top: 20px;
+            color: #ff6b6b;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -47,18 +52,25 @@
         <div class="spinner"></div>
         <h1>Loading Study Session...</h1>
         <p>Your study data is available offline</p>
-        <div class="offline-badge" id="offline-indicator" style="display: none;">Offline Mode</div>
+        <div class="offline-badge" id="offline-indicator">Offline Mode</div>
+        <div class="error-message" id="error-message" style="display: none;"></div>
     </div>
     <script>
-        // Check if we're offline
-        if (!navigator.onLine) {
-            document.getElementById('offline-indicator').style.display = 'inline-block';
-        }
+        // Force offline indicator to show
+        document.getElementById('offline-indicator').style.display = 'inline-block';
         
-        // Reload the page to trigger the app load
+        // Don't redirect - let the React app handle routing
+        // The app shell serves as a loading state while the React app initializes
+        
+        // Show error message if the page doesn't load after some time
         setTimeout(() => {
-            window.location.reload();
-        }, 100);
+            // Check if React has loaded by looking for the main app element
+            const mainApp = document.querySelector('[data-reactroot]');
+            if (!mainApp && window.location.pathname.startsWith('/study/')) {
+                document.getElementById('error-message').style.display = 'block';
+                document.getElementById('error-message').textContent = 'Loading study page... If this persists, please refresh the page.';
+            }
+        }, 3000);
     </script>
 </body>
 </html>

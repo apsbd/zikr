@@ -27,6 +27,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const getInitialSession = async () => {
       try {
+        // Check if we're offline before trying to get session
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.log('Offline: Skipping session fetch, checking local storage');
+          
+          // Try to get cached session from local storage
+          const cachedSession = localStorage.getItem('sb-kvzgipwewxdssbixxhqt-auth-token');
+          if (cachedSession) {
+            try {
+              const parsed = JSON.parse(cachedSession);
+              if (parsed?.user) {
+                setSession(parsed);
+                setUser(parsed.user);
+                
+                // Still try to initialize profile from offline storage
+                await initializeUserProfile(parsed.user.id, parsed.user.email || '');
+              }
+            } catch (e) {
+              console.error('Error parsing cached session:', e);
+            }
+          }
+          setLoading(false);
+          return;
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           console.error('Error getting session:', error);
