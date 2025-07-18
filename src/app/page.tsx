@@ -146,20 +146,21 @@ function Dashboard() {
                     
                     {/* Offline Status */}
                     {!isOnline && (
-                        <div className='mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg'>
-                            <div className='flex items-center justify-center'>
-                                <div className='w-5 h-5 text-amber-600 mr-3'>
-                                    <svg fill='currentColor' viewBox='0 0 20 20'>
-                                        <path fillRule='evenodd' d='M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z' clipRule='evenodd' />
-                                    </svg>
-                                </div>
-                                <div className='text-center'>
-                                    <p className='text-sm font-medium text-amber-700'>
-                                        Working offline
-                                    </p>
-                                    <p className='text-xs text-amber-600'>
-                                        Changes will sync when reconnected
-                                    </p>
+                        <div className='mb-6 relative overflow-hidden rounded-2xl bg-gradient-to-r from-zinc-900/90 to-zinc-800/90 backdrop-blur-sm border border-zinc-700/50'>
+                            <div className='absolute inset-0 bg-gradient-to-r from-orange-500/10 to-amber-500/10'></div>
+                            <div className='relative px-6 py-4'>
+                                <div className='flex items-center justify-center gap-3'>
+                                    <div className='flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/20'>
+                                        <div className='w-2 h-2 rounded-full bg-orange-500 animate-pulse'></div>
+                                    </div>
+                                    <div className='text-center'>
+                                        <p className='text-sm font-medium text-zinc-100'>
+                                            Offline Mode
+                                        </p>
+                                        <p className='text-xs text-zinc-400'>
+                                            Your progress is saved locally
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

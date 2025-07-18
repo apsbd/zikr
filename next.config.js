@@ -5,6 +5,9 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development', // Disable PWA in development
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic files
+  fallbacks: {
+    document: '/offline.html' // Fallback page for offline document requests
+  },
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
@@ -97,9 +100,19 @@ const withPWA = require('next-pwa')({
     },
     {
       urlPattern: ({ request }) => request.destination === 'document',
-      handler: 'NetworkFirst',
+      handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'pages',
+        plugins: [
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200) {
+                return response;
+              }
+              return null;
+            }
+          }
+        ],
         expiration: {
           maxEntries: 32,
           maxAgeSeconds: 24 * 60 * 60 // 24 hours
