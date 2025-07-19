@@ -144,31 +144,45 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
             if (!open) resetDialog();
             onOpenChange(open);
         }}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md" showCloseButton={false}>
                 <DialogHeader>
-                    <DialogTitle>Sync Progress</DialogTitle>
+                    <div className="flex items-center justify-between">
+                        <DialogTitle>Sync Your Data</DialogTitle>
+                        <button
+                            onClick={() => onOpenChange(false)}
+                            className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                            <span className="sr-only">Close</span>
+                        </button>
+                    </div>
                     <DialogDescription>
-                        Choose how you want to sync your progress
+                        Keep your progress synchronized between devices
                     </DialogDescription>
                 </DialogHeader>
 
                 {syncStatus === 'idle' && (
                     <div className="space-y-4">
                         <div className="space-y-3">
-                            <div className="p-4 border rounded-lg space-y-3">
+                            <div className="p-4 border rounded-lg space-y-3 hover:border-blue-200 transition-colors">
                                 <div className="flex items-start gap-3">
-                                    <CloudUpload className="w-5 h-5 text-blue-500 mt-0.5" />
+                                    <div className="p-2 bg-blue-50 rounded-lg">
+                                        <CloudUpload className="w-5 h-5 text-blue-600" />
+                                    </div>
                                     <div className="flex-1 space-y-1">
-                                        <h3 className="font-medium">Upload Progress</h3>
+                                        <h3 className="font-medium">Upload to Cloud</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Upload your local progress to the server
+                                            Save your local progress to the server
                                         </p>
                                     </div>
                                 </div>
-                                <Alert className="border-orange-200 bg-orange-50">
-                                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                                    <AlertDescription className="text-orange-800">
-                                        <strong>Warning:</strong> This will overwrite all progress on the server with your local data.
+                                <Alert className="border-2 border-red-400 bg-red-50 shadow-md">
+                                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                                    <AlertDescription className="text-sm font-medium text-red-900">
+                                        This will replace server data with your local progress
                                     </AlertDescription>
                                 </Alert>
                                 <Button 
@@ -177,24 +191,26 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                                     variant="default"
                                 >
                                     <CloudUpload className="w-4 h-4 mr-2" />
-                                    Upload to Server
+                                    Upload
                                 </Button>
                             </div>
 
-                            <div className="p-4 border rounded-lg space-y-3">
+                            <div className="p-4 border rounded-lg space-y-3 hover:border-green-200 transition-colors">
                                 <div className="flex items-start gap-3">
-                                    <CloudDownload className="w-5 h-5 text-green-500 mt-0.5" />
+                                    <div className="p-2 bg-green-50 rounded-lg">
+                                        <CloudDownload className="w-5 h-5 text-green-600" />
+                                    </div>
                                     <div className="flex-1 space-y-1">
-                                        <h3 className="font-medium">Download Progress</h3>
+                                        <h3 className="font-medium">Download from Cloud</h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Download progress from the server
+                                            Get the latest progress from the server
                                         </p>
                                     </div>
                                 </div>
-                                <Alert className="border-orange-200 bg-orange-50">
-                                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                                    <AlertDescription className="text-orange-800">
-                                        <strong>Warning:</strong> This will replace all your local progress with data from the server.
+                                <Alert className="border-2 border-red-400 bg-red-50 shadow-md">
+                                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                                    <AlertDescription className="text-sm font-medium text-red-900">
+                                        This will replace local data with your server progress
                                     </AlertDescription>
                                 </Alert>
                                 <Button 
@@ -203,7 +219,7 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                                     variant="secondary"
                                 >
                                     <CloudDownload className="w-4 h-4 mr-2" />
-                                    Download from Server
+                                    Download
                                 </Button>
                             </div>
                         </div>
@@ -211,37 +227,38 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                 )}
 
                 {(syncStatus === 'uploading' || syncStatus === 'downloading') && (
-                    <div className="space-y-4 py-4">
-                        <div className="flex items-center justify-center">
-                            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <div className="space-y-6 py-6">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="relative">
+                                <div className="w-16 h-16 border-4 border-gray-200 rounded-full" />
+                                <div className="absolute inset-0 w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                            </div>
+                            <h3 className="text-lg font-medium">
+                                {syncStatus === 'uploading' ? 'Uploading to Server' : 'Downloading from Server'}
+                            </h3>
                         </div>
-                        <div className="space-y-2">
-                            <Progress value={progress} className="h-2" />
+                        <div className="space-y-3">
+                            <Progress value={progress} className="h-3" />
                             <p className="text-sm text-center text-muted-foreground">
-                                {message}
+                                {message || 'Syncing your data...'}
                             </p>
-                        </div>
-                        <div className="mt-4">
-                            <Button
-                                onClick={() => {
-                                    console.log('Cancelling sync operation...');
-                                    resetDialog();
-                                    onOpenChange(false);
-                                }}
-                                variant="outline"
-                                className="w-full"
-                            >
-                                Cancel
-                            </Button>
+                            <p className="text-xs text-center text-muted-foreground">
+                                {progress}% complete
+                            </p>
                         </div>
                     </div>
                 )}
 
                 {syncStatus === 'success' && (
-                    <div className="space-y-4 py-4">
-                        <div className="flex flex-col items-center gap-3">
-                            <CheckCircle className="w-12 h-12 text-green-500" />
-                            <p className="text-center">{message}</p>
+                    <div className="space-y-6 py-6">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="p-3 bg-green-100 rounded-full">
+                                <CheckCircle className="w-16 h-16 text-green-600" />
+                            </div>
+                            <div className="text-center space-y-2">
+                                <h3 className="text-lg font-semibold text-green-900">Sync Complete!</h3>
+                                <p className="text-base text-gray-700 font-medium px-4">{message}</p>
+                            </div>
                         </div>
                     </div>
                 )}

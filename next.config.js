@@ -141,8 +141,13 @@ const withPWA = require('next-pwa')({
       }
     },
     // Handle Supabase API calls for offline functionality
+    // Exclude auth endpoints to prevent interference
     {
-      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+      urlPattern: ({ url }) => {
+        const isSupabase = url.origin.includes('supabase.co');
+        const isAuth = url.pathname.includes('/auth/');
+        return isSupabase && !isAuth;
+      },
       handler: 'NetworkOnly',
       options: {
         backgroundSync: {
