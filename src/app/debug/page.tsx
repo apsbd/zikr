@@ -38,7 +38,13 @@ export default function DebugPage() {
         return;
       }
 
-      setDebugData({ status: 'Got session, making API call...' });
+      setDebugData({ 
+        status: 'Got session, making API call...', 
+        sessionInfo: {
+          hasToken: !!session.access_token,
+          tokenLength: session.access_token?.length || 0
+        }
+      });
 
       const response = await fetch('/api/debug-auth', {
         method: 'GET',
@@ -63,7 +69,6 @@ export default function DebugPage() {
       const data = await response.json();
       setDebugData(data);
     } catch (error) {
-      console.error('Debug fetch error:', error);
       setDebugData({ 
         error: 'Failed to fetch debug data', 
         details: error instanceof Error ? error.message : String(error),
@@ -82,7 +87,7 @@ export default function DebugPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      // Silent fail
     }
   };
 
@@ -103,10 +108,7 @@ export default function DebugPage() {
 
             <div className="flex gap-2">
               <Button 
-                onClick={() => {
-                  console.log('Debug button clicked');
-                  fetchDebugData();
-                }} 
+                onClick={fetchDebugData} 
                 disabled={loading}
               >
                 {loading ? 'Loading...' : 'Fetch Debug Data'}
@@ -125,6 +127,26 @@ export default function DebugPage() {
                 variant="outline"
               >
                 Test API
+              </Button>
+              
+              <Button 
+                onClick={async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const response = await fetch('/api/debug-auth-test', {
+                      headers: {
+                        'Authorization': session ? `Bearer ${session.access_token}` : 'none'
+                      }
+                    });
+                    const data = await response.json();
+                    setTestData(data);
+                  } catch (error) {
+                    setTestData({ error: 'Debug Auth Test failed', details: String(error) });
+                  }
+                }} 
+                variant="outline"
+              >
+                Test Debug Auth
               </Button>
             </div>
             

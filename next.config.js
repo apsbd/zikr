@@ -84,8 +84,16 @@ const withPWA = require('next-pwa')({
         }
       }
     },
+    // Ensure API routes are never cached
     {
-      urlPattern: /\.(?:json)$/i,
+      urlPattern: /^\/api\//,
+      handler: 'NetworkOnly'
+    },
+    {
+      urlPattern: ({ url }) => {
+        // Only cache JSON files that are NOT API routes
+        return url.pathname.endsWith('.json') && !url.pathname.startsWith('/api/');
+      },
       handler: 'NetworkFirst',
       options: {
         cacheName: 'apis',

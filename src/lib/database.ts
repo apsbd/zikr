@@ -1138,8 +1138,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   try {
     // Check if we're offline
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('Offline: Attempting to get user profile from offline storage');
-      
       try {
         const { offlineService } = await import('./offline');
         const offlineProfile = await offlineService.getUserProfile(userId);
@@ -1147,14 +1145,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
           return offlineProfile;
         }
       } catch (error) {
-        console.log('Could not retrieve offline profile:', error);
+        // Silent fail
       }
       
       // Return null if offline and no cached profile
       return null;
     }
-    
-    console.log('Fetching user profile for userId:', userId);
     
     const { data, error } = await supabase
       .from('user_profiles')
@@ -1163,20 +1159,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       .single();
 
     if (error) {
-      console.error('Supabase error fetching user profile:', error);
-      console.error('Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
       
       // If profile doesn't exist, try to get user email and create profile
       if (error.code === 'PGRST116') { // Row not found
-        console.log('Profile not found, attempting to get user email for creation');
         const { data: { user } } = await supabase.auth.getUser();
         if (user && user.id === userId) {
-          console.log('Creating profile for user:', user.email);
           return await initializeUserProfile(userId, user.email || '');
         }
       }
@@ -1192,7 +1179,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     
     return data;
   } catch (error) {
-    console.error('Error in getUserProfile:', error);
     return null;
   }
 }
@@ -1402,8 +1388,6 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
   try {
     // Check if we're offline
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('Offline: Checking admin status from offline storage');
-      
       try {
         const { offlineService } = await import('./offline');
         const offlineProfile = await offlineService.getUserProfile(userId);
@@ -1412,7 +1396,7 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
           return isAdmin;
         }
       } catch (error) {
-        console.log('Could not check offline admin status:', error);
+        // Silent fail
       }
       
       // Default to false if offline and no cached profile
@@ -1427,16 +1411,12 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
       .single();
     
     if (error || !profile) {
-      console.log('isUserAdmin: No profile found for userId:', userId, error);
       return false;
     }
     
-    console.log('isUserAdmin: Profile found:', { email: profile.email, role: profile.role });
     const isAdmin = profile.role === 'admin' || profile.role === 'superuser';
-    console.log('isUserAdmin: Result:', isAdmin);
     return isAdmin;
   } catch (error) {
-    console.error('Error checking admin status:', error);
     return false;
   }
 }
@@ -1452,15 +1432,12 @@ export async function isUserSuperuser(userId: string): Promise<boolean> {
       .single();
     
     if (error || !profile) {
-      console.log('No profile found for user:', userId, error);
       return false;
     }
     
-    console.log('User profile role:', profile.role, 'for user:', profile.email);
     const isSuperuser = profile.role === 'superuser';
     return isSuperuser;
   } catch (error) {
-    console.error('Error checking superuser status:', error);
     return false;
   }
 }

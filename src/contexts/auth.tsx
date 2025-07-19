@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         // Check if we're offline before trying to get session
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          console.log('Offline: Skipping session fetch, checking local storage');
+          // Offline: Skip session fetch, check local storage instead
           
           // Try to get cached session from local storage
           const cachedSession = localStorage.getItem('sb-kvzgipwewxdssbixxhqt-auth-token');
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await initializeUserProfile(parsed.user.id, parsed.user.email || '');
               }
             } catch (e) {
-              console.error('Error parsing cached session:', e);
+              // Silently fail if cached session is invalid
             }
           }
           setLoading(false);
@@ -52,9 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error);
-        } else {
+        if (!error) {
           setSession(session);
           setUser(session?.user ?? null);
           
@@ -66,12 +64,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Don't sync here - the dashboard component will handle initial sync
               // This prevents duplicate syncs on page refresh
             } catch (profileError) {
-              console.error('Error ensuring user profile for existing session:', profileError);
+              // Profile initialization error - non-critical
             }
           }
         }
       } catch (error) {
-        console.error('Error in getInitialSession:', error);
+        // Session initialization error
       } finally {
         setLoading(false);
       }
@@ -84,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         // Skip auth state changes when offline to prevent logout
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          console.log('Offline: Ignoring auth state change event:', event);
+          // Offline: Ignore auth state changes to prevent logout
           return;
         }
 
@@ -101,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { offlineService } = await import('@/lib/offline');
             await offlineService.setCurrentUser(session.user.id);
           } catch (error) {
-            console.error('Error initializing user profile:', error);
+            // Profile initialization error - non-critical
           }
         }
       }
@@ -125,8 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { offlineService } = await import('@/lib/offline');
         await offlineService.setCurrentUser(data.user.id);
       } catch (profileError) {
-        console.error('Error initializing user profile after signup:', profileError);
-        // Don't return this error as the signup itself was successful
+        // Profile initialization error - signup itself was successful
       }
     }
     
@@ -151,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Clear auto-download flag so it can retry on next login
         localStorage.removeItem(`auto-download-attempted-${user.id}`);
       } catch (error) {
-        console.error('Error during sync cleanup:', error);
+        // Sync cleanup error - non-critical for logout
       }
     }
     
@@ -192,7 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    console.error('useAuth called outside AuthProvider');
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

@@ -48,7 +48,6 @@ function Dashboard() {
             const decks = await offlineService.getDecks();
             setDisplayDecks(decks);
         } catch (err) {
-            console.error('Failed to load decks:', err);
             setError('Failed to load decks');
         } finally {
             setIsLoading(false);
@@ -78,7 +77,7 @@ function Dashboard() {
                 // Just set the user without syncing
                 await offlineService.setCurrentUser(user.id);
                 
-                console.log('🔒 Offline-first mode: No automatic sync');
+                // Offline-first mode: No automatic sync
                 
                 setIsInitialized(true);
                 
@@ -97,16 +96,15 @@ function Dashboard() {
                         localStorage.setItem(autoDownloadKey, 'true');
                         
                         // Trigger download from server
-                        console.log('📥 No decks found, triggering auto-download...');
+                        // No decks found, trigger auto-download
                         try {
                             const result = await offlineService.performManualDownload(user.id);
                             if (result.success) {
-                                console.log(`✅ Auto-download successful: ${result.synced_count} items downloaded`);
-                                // Reload decks after download
+                                // Auto-download successful, reload decks
                                 await loadDecks();
                             }
                         } catch (error) {
-                            console.error('❌ Auto-download failed:', error);
+                            // Auto-download failed
                         }
                     }
                 }
@@ -114,7 +112,6 @@ function Dashboard() {
                 // Refresh sync status
                 await refreshStatus();
             } catch (err) {
-                console.error('Failed to initialize offline service:', err);
                 setError('Failed to initialize app - working offline');
                 setIsInitialized(true);
             }

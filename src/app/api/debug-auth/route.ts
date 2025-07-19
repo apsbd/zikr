@@ -3,11 +3,23 @@ import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { getUserProfile, isUserAdmin, isUserSuperuser } from '@/lib/database';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Get the authorization header
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.split(' ')[1] || '';
+    
+    if (!token) {
+      return NextResponse.json({ 
+        error: 'No auth token provided',
+        headers: {
+          authorization: authHeader || 'none'
+        }
+      }, { status: 401 });
+    }
     
     // Create Supabase client with the user's token
     const supabase = createClient(
