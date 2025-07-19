@@ -87,7 +87,8 @@ const withPWA = require('next-pwa')({
     // Ensure API routes are never cached
     {
       urlPattern: /^\/api\//,
-      handler: 'NetworkOnly'
+      handler: 'NetworkOnly',
+      options: {}
     },
     {
       urlPattern: ({ url }) => {
