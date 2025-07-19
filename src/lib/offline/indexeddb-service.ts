@@ -356,15 +356,29 @@ export class IndexedDBService {
     let dueCount = 0;
     let nextReviewTime: string | undefined;
 
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowStr = now.toISOString();
     const allDueTimes: string[] = [];
+    
+    // Check when new cards were last introduced for this deck
+    const metadataKey = `deck_${deckId}_last_new_cards`;
+    const metadata = await this.get<MetadataEntry>(STORE_NAMES.METADATA, metadataKey);
+    const lastNewCardsDate = metadata?.value ? new Date(metadata.value) : null;
+    
+    // Calculate if we can show new cards (24 hours have passed)
+    const canShowNewCards = !lastNewCardsDate || 
+      (now.getTime() - lastNewCardsDate.getTime()) >= 24 * 60 * 60 * 1000;
+    
+    let newCardsDue = 0;
+    let reviewCardsDue = 0;
     
     for (const card of cards) {
       const progress = cardProgressMap.get(card.id);
       if (!progress) {
         newCount++;
-        // New cards are considered due (up to daily limit)
-        if (newCount <= (deck.daily_new_limit || 20)) {
+        // New cards are only considered due if we can show them (24hr limit)
+        if (canShowNewCards && newCardsDue < (deck.daily_new_limit || 20)) {
+          newCardsDue++;
           dueCount++;
         }
       } else {
@@ -376,10 +390,9 @@ export class IndexedDBService {
         }
         
         // Check if card is due for study
-        if (progress.due <= now) {
+        if (progress.due <= nowStr) {
+          reviewCardsDue++;
           dueCount++;
-        } else {
-          console.log(`Card ${card.id} not due: ${progress.due} > ${now}`);
         }
         
         // Collect all due times for next review calculation
@@ -388,7 +401,7 @@ export class IndexedDBService {
     }
 
     // Find the earliest future due time (cards that are not due yet)
-    const futureDueTimes = allDueTimes.filter(time => time > now);
+    const futureDueTimes = allDueTimes.filter(time => time > nowStr);
     if (futureDueTimes.length > 0) {
       futureDueTimes.sort();
       nextReviewTime = futureDueTimes[0];
@@ -446,7 +459,8 @@ export class IndexedDBService {
   }
 
   async getDueCards(userId: string, deckId?: string): Promise<OfflineCard[]> {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const nowStr = now.toISOString();
     
     // Get all cards for the deck
     const allCards = deckId 
@@ -469,29 +483,64 @@ export class IndexedDBService {
     const deck = deckId ? await this.get<OfflineDeck>(STORE_NAMES.DECKS, deckId) : null;
     const dailyNewLimit = deck?.daily_new_limit || 20;
 
+    // Check when new cards were last introduced for this deck
+    const metadataKey = `deck_${deckId}_last_new_cards`;
+    const metadata = await this.get<MetadataEntry>(STORE_NAMES.METADATA, metadataKey);
+    const lastNewCardsDate = metadata?.value ? new Date(metadata.value) : null;
+    
+    // Calculate if we can show new cards (24 hours have passed)
+    const canShowNewCards = !lastNewCardsDate || 
+      (now.getTime() - lastNewCardsDate.getTime()) >= 24 * 60 * 60 * 1000;
+    
+    console.log(`🎴 Daily limit check: Last new cards shown at ${lastNewCardsDate?.toISOString() || 'never'}, can show new: ${canShowNewCards}`);
+
     let newCardsIncluded = 0;
     let dueReviewCards = 0;
+    let newCardsToShow: OfflineCard[] = [];
+    let reviewCardsToShow: OfflineCard[] = [];
     
-    // Filter cards that are due
-    const dueCards = allCards.filter(card => {
+    // First, collect all review cards that are due
+    for (const card of allCards) {
       const progress = progressMap.get(card.id);
       
-      if (!progress) {
-        // New card - include up to daily limit
-        if (newCardsIncluded < dailyNewLimit) {
-          newCardsIncluded++;
-          return true;
-        }
-        return false;
-      }
-      
-      // Card with progress - check if due
-      if (progress.due <= now) {
+      if (progress && progress.due <= nowStr) {
+        // Review card that is due
+        reviewCardsToShow.push(card);
         dueReviewCards++;
-        return true;
+      } else if (!progress && canShowNewCards) {
+        // New card - collect separately
+        newCardsToShow.push(card);
       }
-      return false;
-    });
+    }
+    
+    // If we can show new cards, take up to the daily limit
+    let finalNewCards: OfflineCard[] = [];
+    if (canShowNewCards && newCardsToShow.length > 0) {
+      finalNewCards = newCardsToShow.slice(0, dailyNewLimit);
+      newCardsIncluded = finalNewCards.length;
+      
+      // Update the metadata to track when these new cards were shown
+      if (newCardsIncluded > 0) {
+        // Use direct transaction for metadata since it uses 'key' not 'id'
+        const tx = await this.transaction([STORE_NAMES.METADATA], 'readwrite');
+        const store = tx.objectStore(STORE_NAMES.METADATA);
+        
+        await new Promise<void>((resolve, reject) => {
+          const request = store.put({
+            key: metadataKey,
+            value: nowStr,
+            updated_at: nowStr
+          });
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+        
+        console.log(`🎴 Updated last new cards timestamp for deck ${deckId}`);
+      }
+    }
+    
+    // Combine review cards and new cards
+    const dueCards = [...reviewCardsToShow, ...finalNewCards];
 
     console.log(`🎴 getDueCards result: ${dueCards.length} due cards (${newCardsIncluded} new, ${dueReviewCards} reviews)`);
     

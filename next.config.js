@@ -6,20 +6,8 @@ const withPWA = require('next-pwa')({
   disable: false, // Enable PWA in all environments for offline testing
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic files
   customWorkerDir: 'public',
-  importScripts: ['offline-sw.js', 'sw-custom.js'],
+  importScripts: ['simple-offline-sw.js'],
   runtimeCaching: [
-    // Cache the app shell
-    {
-      urlPattern: /\/app-shell\.html$/,
-      handler: 'CacheFirst',
-      options: {
-        cacheName: 'app-shell',
-        expiration: {
-          maxEntries: 1,
-          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
-        }
-      }
-    },
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
       handler: 'CacheFirst',

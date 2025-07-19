@@ -97,6 +97,12 @@ function StudyPageContent({ params }: StudyPageProps) {
         params.then((resolvedParams) => {
             setDeckId(resolvedParams.deckId);
             loadStudyData(resolvedParams.deckId);
+            
+            // Cache this page for offline access
+            if ('serviceWorker' in navigator && navigator.onLine) {
+                console.log('Caching study page for offline access');
+                // The service worker will automatically cache this page on load
+            }
         });
     }, [params, user]);
 
