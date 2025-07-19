@@ -14,7 +14,7 @@ export function OfflineCacheManager() {
         // Get all user's decks from IndexedDB
         const { offlineService } = await import('@/lib/offline');
         await offlineService.init();
-        const decks = await offlineService.getDecks(user.id) || [];
+        const decks = await offlineService.getDecks() || [];
 
         // List of essential pages to cache
         const pagesToCache = [
