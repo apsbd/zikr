@@ -39,7 +39,6 @@ export default function AdminPanel() {
             : `[${timestamp}] ${message}`;
         
         setDebugLogs(prev => [...prev, logEntry]);
-        console.log(message, data); // Still log to console too
     };
 
     // Copy debug logs to clipboard
@@ -62,7 +61,7 @@ ${allLogs}
             setCopiedLogs(true);
             setTimeout(() => setCopiedLogs(false), 2000);
         } catch (error) {
-            console.error('Failed to copy logs:', error);
+            // Failed to copy logs
         }
     };
 
@@ -72,7 +71,7 @@ ${allLogs}
             const savedDecks = await getDecks(user?.id);
             setDecks(savedDecks);
         } catch (error) {
-            console.error('Error loading decks:', error);
+            addDebugLog('Error loading decks', error);
         }
     };
 

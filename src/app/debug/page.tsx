@@ -148,6 +148,26 @@ export default function DebugPage() {
               >
                 Test Debug Auth
               </Button>
+              
+              <Button 
+                onClick={async () => {
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const response = await fetch('/api/check-admin', {
+                      headers: {
+                        'Authorization': session ? `Bearer ${session.access_token}` : 'none'
+                      }
+                    });
+                    const data = await response.json();
+                    setTestData(data);
+                  } catch (error) {
+                    setTestData({ error: 'Check Admin failed', details: String(error) });
+                  }
+                }} 
+                variant="outline"
+              >
+                Check Admin Status
+              </Button>
             </div>
             
             {testData && (
