@@ -1409,10 +1409,13 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     const profile = await getUserProfile(userId);
     
     if (!profile) {
+      console.log('isUserAdmin: No profile found for userId:', userId);
       return false;
     }
     
+    console.log('isUserAdmin: Profile found:', { email: profile.email, role: profile.role });
     const isAdmin = profile.role === 'admin' || profile.role === 'superuser';
+    console.log('isUserAdmin: Result:', isAdmin);
     return isAdmin;
   } catch (error) {
     console.error('Error checking admin status:', error);
@@ -1426,9 +1429,11 @@ export async function isUserSuperuser(userId: string): Promise<boolean> {
     const profile = await getUserProfile(userId);
     
     if (!profile) {
+      console.log('No profile found for user:', userId);
       return false;
     }
     
+    console.log('User profile role:', profile.role, 'for user:', profile.email);
     const isSuperuser = profile.role === 'superuser';
     return isSuperuser;
   } catch (error) {
@@ -1436,6 +1441,7 @@ export async function isUserSuperuser(userId: string): Promise<boolean> {
     return false;
   }
 }
+
 
 // Initialize user profile on first login
 export async function initializeUserProfile(userId: string, email: string): Promise<UserProfile | null> {

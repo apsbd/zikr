@@ -82,6 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Skip auth state changes when offline to prevent logout
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          console.log('Offline: Ignoring auth state change event:', event);
+          return;
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
