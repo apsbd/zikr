@@ -51,34 +51,33 @@ class AppUpdater {
     const storedVersion = localStorage.getItem(this.VERSION_KEY);
     const storedBuildTime = localStorage.getItem(this.BUILD_TIME_KEY);
     
-    // ONLY check version changes, NOT build time
-    // Build time changes on every build and causes infinite loops
-    const versionChanged = storedVersion && storedVersion !== this.CURRENT_VERSION;
+    // Check if this is a new build (different build time)
+    const isNewBuild = storedBuildTime && storedBuildTime !== this.BUILD_TIME;
     
-    if (versionChanged) {
-      console.log(`📱 App version update detected:`);
-      console.log(`  Version: ${storedVersion} → ${this.CURRENT_VERSION}`);
+    if (isNewBuild) {
+      console.log(`📱 New build detected:`);
+      console.log(`  Version: ${this.CURRENT_VERSION}`);
+      console.log(`  Previous build: ${new Date(parseInt(storedBuildTime)).toISOString()}`);
+      console.log(`  Current build: ${new Date(parseInt(this.BUILD_TIME)).toISOString()}`);
       
-      // Clear everything before updating
-      await this.clearAppCache();
-      
-      // Store new version and build time
+      // Store the new build time BEFORE clearing cache to prevent loops
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
+      
+      // Clear everything and reload
+      await this.clearAppCache();
       
       // Force reload to get new content
       setTimeout(() => {
         window.location.reload();
       }, 100);
-    } else if (!storedVersion) {
+    } else if (!storedBuildTime) {
       // First time loading, just store the values without reloading
-      console.log('📱 First time app load, storing version info');
+      console.log('📱 First time app load, storing build info');
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
-    } else {
-      // Same version, just update build time silently (no reload)
-      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
     }
+    // If build time matches, do nothing (prevents infinite loops)
   }
 
   private async clearAppCache() {
