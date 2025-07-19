@@ -119,7 +119,7 @@ const withPWA = require('next-pwa')({
     },
     // Cache the main app pages
     {
-      urlPattern: /^\/(study|admin|login)?.*/i,
+      urlPattern: /^\/(study\/[^\/]+|admin|login|offline-study)?.*/i,
       handler: 'NetworkFirst',
       options: {
         cacheName: 'app-pages',
