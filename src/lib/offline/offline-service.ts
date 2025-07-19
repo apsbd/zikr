@@ -54,134 +54,34 @@ export class OfflineService {
   }
 
   private setupAutoSync(): void {
-    this.syncEngine.scheduleBackgroundSync();
-    
-    this.syncQueue.schedulePeriodicSync();
+    // Disabled automatic sync - now manual only
+    console.log('🔒 Automatic sync disabled - manual sync only');
+    // this.syncEngine.scheduleBackgroundSync();
+    // this.syncQueue.schedulePeriodicSync();
   }
 
   async login(userId: string, isExplicitLogin: boolean = true): Promise<SyncResult> {
-    // Return existing login promise if already in progress
-    if (this.loginPromise) {
-      console.log('Login already in progress, waiting for completion');
-      return this.loginPromise;
-    }
+    console.log('🔑 Login called - setting user without sync');
     
     // Set current user immediately to avoid "No current user set" errors
     await this.dataService.setCurrentUser(userId);
-    const currentUser = await this.dataService.getCurrentUser();
     
-    // For explicit logins (user clicked login button), always run full sync
-    if (isExplicitLogin) {
-      console.log('🔑 Explicit login detected, performing full sync');
-      this.loginPromise = this.performLogin(userId);
-    }
-    // For automatic/background logins (page refresh, token refresh)
-    else if (currentUser === userId) {
-      // Check if we have data in IndexedDB - if not, we need to sync
-      const hasLocalData = await this.dataService.getOfflineCapabilities();
-      
-      // Also check if user profile exists in IndexedDB
-      let userProfile = null;
-      try {
-        userProfile = await this.dataService.getUserProfile(userId);
-        console.log('📋 User profile check:', userProfile ? 'found' : 'not found');
-      } catch (error) {
-        console.log('📋 User profile check error:', error);
-      }
-      
-      if (hasLocalData.hasLocalData && userProfile) {
-        console.log('🔄 Background auth for same user with local data and profile, skipping sync');
-        return {
-          success: true,
-          synced_count: 0,
-          failed_count: 0,
-          conflicts: [],
-          last_sync_timestamp: new Date().toISOString()
-        };
-      } else {
-        console.log('🔄 Background auth for same user but missing data or profile, performing sync');
-        this.loginPromise = this.performLogin(userId);
-      }
-    }
-    // Different user or first time login
-    else {
-      console.log('🔑 Different user or first login, performing full sync');
-      this.loginPromise = this.performLogin(userId);
-    }
+    // In offline-first mode, we never sync automatically
+    // User must explicitly use the sync button
+    console.log('🔒 Offline-first mode: No automatic sync on login');
     
-    try {
-      const result = await this.loginPromise;
-      return result;
-    } finally {
-      this.loginPromise = null;
-    }
-  }
-  
-  private async performLogin(userId: string): Promise<SyncResult> {
-    console.log('🔑 Starting login process for user:', userId);
-    await this.dataService.setCurrentUser(userId);
-    
-    if (navigator.onLine) {
-      try {
-        console.log('🌐 Online - performing full sync on login...');
-        
-        // First ensure user profile is initialized in the remote database
-        await this.ensureUserProfileExists(userId);
-        
-        const result = await this.syncEngine.performFullSync(userId);
-        console.log('✅ Login sync completed:', result);
-        return result;
-      } catch (error) {
-        console.error('❌ Login sync failed:', error);
-        return {
-          success: false,
-          synced_count: 0,
-          failed_count: 1,
-          conflicts: [],
-          last_sync_timestamp: new Date().toISOString()
-        };
-      }
-    } else {
-      console.log('📱 Login in offline mode');
-      return {
-        success: true,
-        synced_count: 0,
-        failed_count: 0,
-        conflicts: [],
-        last_sync_timestamp: new Date().toISOString()
-      };
-    }
-  }
-  
-  private async ensureUserProfileExists(userId: string): Promise<void> {
-    try {
-      // Import supabase to get current user info
-      const { supabase } = await import('@/lib/supabase');
-      
-      // Get current user info from auth
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.id !== userId) {
-        console.warn('User ID mismatch during profile initialization');
-        return;
-      }
-      
-      // Import the database function to initialize user profile
-      const { initializeUserProfile } = await import('@/lib/database');
-      
-      // This will create the profile if it doesn't exist, or return existing profile
-      const profile = await initializeUserProfile(userId, user.email || '');
-      console.log('✅ User profile initialized:', profile?.role);
-    } catch (error) {
-      console.error('Error ensuring user profile exists:', error);
-      // Don't fail the login process if profile initialization fails
-    }
+    return {
+      success: true,
+      synced_count: 0,
+      failed_count: 0,
+      conflicts: [],
+      last_sync_timestamp: new Date().toISOString()
+    };
   }
 
   async logout(): Promise<void> {
-    if (navigator.onLine) {
-      console.log('🔄 Syncing before logout...');
-      await this.syncEngine.performQuickSync();
-    }
+    // In offline-first mode, we don't sync automatically on logout
+    console.log('🔒 Offline-first mode: No automatic sync on logout');
     
     console.log('🔑 Clearing user data on logout...');
     await this.dataService.clearCurrentUser();
@@ -207,9 +107,7 @@ export class OfflineService {
     try {
       const decks = await this.dataService.getDecks();
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return decks;
     } catch (error) {
@@ -222,9 +120,7 @@ export class OfflineService {
     try {
       const deck = await this.dataService.getDeck(deckId);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return deck;
     } catch (error) {
@@ -248,9 +144,7 @@ export class OfflineService {
     try {
       const session = await this.dataService.getStudySession(deckId);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return session;
     } catch (error) {
@@ -332,9 +226,7 @@ export class OfflineService {
     try {
       const updatedProgress = await this.dataService.updateUserProgress(progress);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return updatedProgress;
     } catch (error) {
@@ -347,9 +239,7 @@ export class OfflineService {
     try {
       const updatedProgress = await this.dataService.batchUpdateUserProgress(progressList);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return updatedProgress;
     } catch (error) {
@@ -381,9 +271,7 @@ export class OfflineService {
         throw new Error('Failed to retrieve created deck');
       }
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return deckWithStats;
     } catch (error) {
@@ -401,9 +289,7 @@ export class OfflineService {
     try {
       const card = await this.dataService.createCard(cardData);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return card;
     } catch (error) {
@@ -416,9 +302,7 @@ export class OfflineService {
     try {
       const updatedCard = await this.dataService.updateCard(card);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
       
       return updatedCard;
     } catch (error) {
@@ -431,9 +315,7 @@ export class OfflineService {
     try {
       await this.dataService.deleteCard(cardId);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
     } catch (error) {
       console.error('Error deleting card:', error);
       throw error;
@@ -444,9 +326,7 @@ export class OfflineService {
     try {
       await this.dataService.deleteDeck(deckId);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
     } catch (error) {
       console.error('Error deleting deck:', error);
       throw error;
@@ -520,9 +400,7 @@ export class OfflineService {
       const data = JSON.parse(jsonData);
       await this.dataService.importData(data);
       
-      if (navigator.onLine) {
-        this.syncEngine.triggerSync();
-      }
+      // No automatic sync in offline-first mode
     } catch (error) {
       console.error('Error importing data:', error);
       throw error;
@@ -537,6 +415,11 @@ export class OfflineService {
 
   async getUserProfile(userId: string): Promise<any> {
     return this.dataService.getUserProfile(userId);
+  }
+  
+  async setCurrentUser(userId: string): Promise<void> {
+    console.log('🔑 Setting current user:', userId);
+    await this.dataService.setCurrentUser(userId);
   }
 
   onNetworkChange(callback: (isOnline: boolean) => void): () => void {

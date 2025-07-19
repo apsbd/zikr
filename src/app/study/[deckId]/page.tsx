@@ -46,17 +46,13 @@ function StudyPageContent({ params }: StudyPageProps) {
                 setRetryCount(0);
             }
             
-            // Initialize offline service
+            // Initialize offline service WITHOUT automatic sync
             await offlineService.init();
             
-            // Perform login sync if online (background auth)
-            if (navigator.onLine && isOnline) {
-                try {
-                    await offlineService.login(user.id, false);
-                } catch (syncError) {
-                    console.warn('Sync failed, continuing with offline data:', syncError);
-                }
-            }
+            // Just ensure user is set
+            await offlineService.setCurrentUser(user.id);
+            
+            console.log('🔒 Offline-first mode: Loading from local data only');
             
             // Get deck metadata from offline service
             const deck = await offlineService.getDeck(deckId);

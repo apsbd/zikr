@@ -47,17 +47,15 @@ export class SyncEngine {
   private setupEventListeners(): void {
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
-        console.log('Network online - starting sync');
-        this.triggerSync();
+        console.log('Network online - manual sync available');
+        // No automatic sync in offline-first mode
       });
 
       window.addEventListener('offline', () => {
-        console.log('Network offline - sync paused');
+        console.log('Network offline - working in offline mode');
       });
 
-      window.addEventListener('beforeunload', () => {
-        this.performQuickSync();
-      });
+      // No automatic sync on page unload in offline-first mode
     }
   }
 
@@ -66,7 +64,8 @@ export class SyncEngine {
     // Just set up listener for messages from the service worker
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'SYNC_REQUIRED') {
-        this.triggerSync();
+        // No automatic sync in offline-first mode
+        console.log('Sync requested by service worker - manual sync required');
       }
     });
   }
@@ -575,9 +574,8 @@ export class SyncEngine {
   }
 
   private fallbackPeriodicSync(): void {
-    setInterval(() => {
-      this.triggerSync();
-    }, 5 * 60 * 1000);
+    // No automatic periodic sync in offline-first mode
+    console.log('Periodic sync disabled - manual sync only');
   }
 
   async getSyncStatus(): Promise<{
@@ -613,5 +611,151 @@ export class SyncEngine {
     await this.db.clear(STORE_NAMES.SYNC_QUEUE);
     await this.db.setMetadata('last_full_sync', null);
     await this.db.setMetadata('last_successful_sync', null);
+  }
+
+  // Manual sync methods for explicit user control
+  
+  async performUploadSync(userId: string): Promise<SyncResult> {
+    console.log('📤 Starting manual upload sync (local → server)');
+    
+    const result: SyncResult = {
+      success: false,
+      synced_count: 0,
+      failed_count: 0,
+      conflicts: [],
+      last_sync_timestamp: new Date().toISOString()
+    };
+
+    try {
+      // 1. Get all local user progress
+      const localProgress = await this.db.getByIndex<OfflineUserProgress>(
+        STORE_NAMES.USER_PROGRESS,
+        'user_id',
+        userId
+      );
+      
+      console.log(`Found ${localProgress.length} local progress records to upload`);
+      
+      // 2. Upload each progress record to server (overwrite server data)
+      for (const progress of localProgress) {
+        try {
+          const { error } = await this.supabase
+            .from('user_progress')
+            .upsert({
+              user_id: progress.user_id,
+              card_id: progress.card_id,
+              state: progress.state,
+              difficulty: progress.difficulty,
+              stability: progress.stability,
+              retrievability: progress.retrievability,
+              due: progress.due,
+              elapsed_days: progress.elapsed_days,
+              scheduled_days: progress.scheduled_days,
+              reps: progress.reps,
+              lapses: progress.lapses,
+              last_review: progress.last_review,
+              created_at: progress.created_at,
+              updated_at: progress.updated_at
+            }, {
+              onConflict: 'user_id,card_id'
+            });
+          
+          if (error) {
+            console.error('Failed to upload progress:', error);
+            result.failed_count++;
+          } else {
+            result.synced_count++;
+            
+            // Mark as synced locally
+            await this.db.put(STORE_NAMES.USER_PROGRESS, {
+              ...progress,
+              sync_status: SyncStatus.SYNCED,
+              local_changes: false
+            });
+          }
+        } catch (err) {
+          console.error('Error uploading progress:', err);
+          result.failed_count++;
+        }
+      }
+      
+      result.success = result.failed_count === 0;
+      await this.db.setMetadata('last_upload_sync', new Date().toISOString());
+      
+      console.log(`✅ Upload sync completed: ${result.synced_count} uploaded, ${result.failed_count} failed`);
+      
+    } catch (error) {
+      console.error('Upload sync failed:', error);
+      result.success = false;
+    }
+    
+    return result;
+  }
+  
+  async performDownloadSync(userId: string): Promise<SyncResult> {
+    console.log('📥 Starting manual download sync (server → local)');
+    
+    const result: SyncResult = {
+      success: false,
+      synced_count: 0,
+      failed_count: 0,
+      conflicts: [],
+      last_sync_timestamp: new Date().toISOString()
+    };
+
+    try {
+      // 1. Clear local user progress first
+      const localProgress = await this.db.getByIndex<OfflineUserProgress>(
+        STORE_NAMES.USER_PROGRESS,
+        'user_id',
+        userId
+      );
+      
+      for (const progress of localProgress) {
+        await this.db.delete(STORE_NAMES.USER_PROGRESS, progress.id);
+      }
+      
+      console.log(`Cleared ${localProgress.length} local progress records`);
+      
+      // 2. Download all user progress from server
+      const { data: serverProgress, error } = await this.supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      console.log(`Found ${serverProgress?.length || 0} server progress records to download`);
+      
+      // 3. Save each progress record locally
+      if (serverProgress) {
+        for (const progress of serverProgress) {
+          try {
+            await this.db.put(STORE_NAMES.USER_PROGRESS, {
+              ...progress,
+              sync_status: SyncStatus.SYNCED,
+              local_changes: false
+            });
+            result.synced_count++;
+          } catch (err) {
+            console.error('Failed to save progress locally:', err);
+            result.failed_count++;
+          }
+        }
+      }
+      
+      result.success = result.failed_count === 0;
+      await this.db.setMetadata('last_download_sync', new Date().toISOString());
+      
+      console.log(`✅ Download sync completed: ${result.synced_count} downloaded, ${result.failed_count} failed`);
+      
+    } catch (error) {
+      console.error('Download sync failed:', error);
+      result.success = false;
+    }
+    
+    return result;
   }
 }

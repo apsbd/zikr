@@ -91,11 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             await initializeUserProfile(session.user.id, session.user.email || '');
             
-            // Explicit login sync (user clicked login button)
+            // No automatic sync in offline-first mode
             const { offlineService } = await import('@/lib/offline');
-            offlineService.login(session.user.id, true).catch(error => {
-              console.error('Login sync failed:', error);
-            });
+            await offlineService.setCurrentUser(session.user.id);
           } catch (error) {
             console.error('Error initializing user profile:', error);
           }
@@ -117,11 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await initializeUserProfile(data.user.id, data.user.email || '');
         
-        // Explicit login sync for new user (signup is like login)
+        // No automatic sync in offline-first mode
         const { offlineService } = await import('@/lib/offline');
-        offlineService.login(data.user.id, true).catch(error => {
-          console.error('Signup sync failed:', error);
-        });
+        await offlineService.setCurrentUser(data.user.id);
       } catch (profileError) {
         console.error('Error initializing user profile after signup:', profileError);
         // Don't return this error as the signup itself was successful

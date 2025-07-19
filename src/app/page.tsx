@@ -13,6 +13,9 @@ import { useAuth } from '@/contexts/auth';
 import { useSyncStatus } from '@/contexts/sync-status';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import LandingPage from '@/components/LandingPage';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
+import { SyncDialog } from '@/components/SyncDialog';
 
 function Dashboard() {
     const router = useRouter();
@@ -23,6 +26,7 @@ function Dashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [syncDialogOpen, setSyncDialogOpen] = useState(false);
     const loadDecksTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const loadDecks = async () => {
@@ -66,18 +70,13 @@ function Dashboard() {
             if (!user || isInitialized) return;
             
             try {
-                // Initialize offline service
+                // Initialize offline service WITHOUT automatic sync
                 await offlineService.init();
                 
-                // Perform login sync (background auth on page refresh)
-                const syncResult = await offlineService.login(user.id, false); // false = background auth
+                // Just set the user without syncing
+                await offlineService.setCurrentUser(user.id);
                 
-                if (!syncResult.success) {
-                    console.warn('Login sync had issues:', syncResult);
-                    if (syncResult.failed_count > 0) {
-                        setError('Some data may not be up to date');
-                    }
-                }
+                console.log('🔒 Offline-first mode: No automatic sync');
                 
                 setIsInitialized(true);
                 
@@ -163,22 +162,20 @@ function Dashboard() {
                 className='h-screen w-full'
                 style={{ height: 'calc(100vh - 80px )' }}>
                 <div className='w-full sm:max-w-4xl sm:mx-auto py-8 px-2 sm:px-4 lg:px-8'>
-                    {/* Sync Status - Only show during login */}
-                    {isFullSyncRunning && (
-                        <div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
-                            <div className='flex items-center justify-center'>
-                                <div className='w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3'></div>
-                                <div className='text-center'>
-                                    <p className='text-sm font-medium text-blue-700'>
-                                        Syncing your data...
-                                    </p>
-                                    <p className='text-xs text-blue-600'>
-                                        This happens once when you login
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Removed automatic sync status - now manual only */}
+                    
+                    {/* Sync Button */}
+                    <div className='mb-6 flex justify-center'>
+                        <Button
+                            onClick={() => setSyncDialogOpen(true)}
+                            variant='outline'
+                            size='sm'
+                            className='gap-2'
+                        >
+                            <RefreshCw className='w-4 h-4' />
+                            Sync Progress
+                        </Button>
+                    </div>
                     
                     {/* Offline Status */}
                     {!isOnline && (
@@ -251,6 +248,16 @@ function Dashboard() {
                     )}
                 </div>
             </ScrollArea>
+            
+            {/* Sync Dialog */}
+            <SyncDialog
+                open={syncDialogOpen}
+                onOpenChange={setSyncDialogOpen}
+                onSyncComplete={() => {
+                    // Reload decks after sync
+                    loadDecks();
+                }}
+            />
         </div>
     );
 }
