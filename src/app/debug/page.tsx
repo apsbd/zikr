@@ -33,7 +33,11 @@ export default function DebugPage() {
       }
       
       if (!session) {
-        setDebugData({ error: 'No active session', note: 'Please log in first' });
+        setDebugData({ 
+          error: 'No active session', 
+          note: 'Please log in first',
+          hint: 'You need to be logged in to use this feature'
+        });
         setLoading(false);
         return;
       }
@@ -104,6 +108,16 @@ export default function DebugPage() {
               <pre className="bg-muted p-3 rounded text-xs overflow-auto">
                 {user ? JSON.stringify({ id: user.id, email: user.email }, null, 2) : 'Not logged in'}
               </pre>
+              {!user && (
+                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ You are not logged in. Most debug features require authentication.
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Please <a href="/login" className="underline font-medium">log in</a> to access all debug features.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -133,9 +147,16 @@ export default function DebugPage() {
                 onClick={async () => {
                   try {
                     const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                      setTestData({ 
+                        error: 'No session', 
+                        message: 'You need to be logged in to test debug auth' 
+                      });
+                      return;
+                    }
                     const response = await fetch('/api/debug-auth-test', {
                       headers: {
-                        'Authorization': session ? `Bearer ${session.access_token}` : 'none'
+                        'Authorization': `Bearer ${session.access_token}`
                       }
                     });
                     const data = await response.json();
@@ -153,9 +174,18 @@ export default function DebugPage() {
                 onClick={async () => {
                   try {
                     const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                      setTestData({ 
+                        error: 'No session', 
+                        message: 'You need to be logged in to check admin status',
+                        isAdmin: false,
+                        isSuperuser: false
+                      });
+                      return;
+                    }
                     const response = await fetch('/api/check-admin', {
                       headers: {
-                        'Authorization': session ? `Bearer ${session.access_token}` : 'none'
+                        'Authorization': `Bearer ${session.access_token}`
                       }
                     });
                     const data = await response.json();
