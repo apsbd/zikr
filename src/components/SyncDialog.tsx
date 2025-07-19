@@ -39,15 +39,14 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
         setMessage('Preparing to upload your progress...');
 
         try {
-            // Get sync engine for manual sync
-            const { SyncEngine } = await import('@/lib/offline/sync-engine');
-            const syncEngine = SyncEngine.getInstance();
+            // Ensure offline service is initialized
+            await offlineService.init();
             
             setProgress(20);
             setMessage('Uploading your progress to the server...');
             
             // Perform upload sync (local → server)
-            const result = await syncEngine.performUploadSync(user.id);
+            const result = await offlineService.performManualUpload(user.id);
             
             setProgress(100);
             
@@ -66,10 +65,11 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                 setProgress(0);
             }, 2000);
             
-        } catch (err) {
+        } catch (err: any) {
             console.error('Upload error:', err);
             setSyncStatus('error');
-            setError('Failed to upload progress. Please check your connection and try again.');
+            setError(err.message || 'Failed to upload progress. Please check your connection and try again.');
+            setProgress(0);
         }
     };
 
@@ -82,15 +82,14 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
         setMessage('Preparing to download progress from server...');
 
         try {
-            // Get sync engine for manual sync
-            const { SyncEngine } = await import('@/lib/offline/sync-engine');
-            const syncEngine = SyncEngine.getInstance();
+            // Ensure offline service is initialized
+            await offlineService.init();
             
             setProgress(20);
             setMessage('Downloading progress from the server...');
             
             // Perform download sync (server → local)
-            const result = await syncEngine.performDownloadSync(user.id);
+            const result = await offlineService.performManualDownload(user.id);
             
             setProgress(100);
             
@@ -109,10 +108,11 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                 setProgress(0);
             }, 2000);
             
-        } catch (err) {
+        } catch (err: any) {
             console.error('Download error:', err);
             setSyncStatus('error');
-            setError('Failed to download progress. Please check your connection and try again.');
+            setError(err.message || 'Failed to download progress. Please check your connection and try again.');
+            setProgress(0);
         }
     };
 

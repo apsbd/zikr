@@ -617,6 +617,7 @@ export class SyncEngine {
   
   async performUploadSync(userId: string): Promise<SyncResult> {
     console.log('📤 Starting manual upload sync (local → server)');
+    console.log('User ID:', userId);
     
     const result: SyncResult = {
       success: false,
@@ -627,7 +628,14 @@ export class SyncEngine {
     };
 
     try {
+      // Check if DB is initialized
+      console.log('Checking DB initialization...');
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
+      
       // 1. Get all local user progress
+      console.log('Fetching local progress for user:', userId);
       const localProgress = await this.db.getByIndex<OfflineUserProgress>(
         STORE_NAMES.USER_PROGRESS,
         'user_id',
@@ -684,9 +692,11 @@ export class SyncEngine {
       
       console.log(`✅ Upload sync completed: ${result.synced_count} uploaded, ${result.failed_count} failed`);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload sync failed:', error);
       result.success = false;
+      // Add error details to help debugging
+      throw new Error(`Upload sync failed: ${error.message || 'Unknown error'}`);
     }
     
     return result;

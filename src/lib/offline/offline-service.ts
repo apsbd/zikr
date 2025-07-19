@@ -421,6 +421,21 @@ export class OfflineService {
     console.log('🔑 Setting current user:', userId);
     await this.dataService.setCurrentUser(userId);
   }
+  
+  // Manual sync methods
+  async performManualUpload(userId: string): Promise<SyncResult> {
+    if (!this.isInitialized) {
+      await this.init();
+    }
+    return this.syncEngine.performUploadSync(userId);
+  }
+  
+  async performManualDownload(userId: string): Promise<SyncResult> {
+    if (!this.isInitialized) {
+      await this.init();
+    }
+    return this.syncEngine.performDownloadSync(userId);
+  }
 
   onNetworkChange(callback: (isOnline: boolean) => void): () => void {
     const handleOnline = () => callback(true);
