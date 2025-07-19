@@ -11,15 +11,6 @@ export default function AppUpdateNotification() {
 
   useEffect(() => {
     const handleUpdateAvailable = (event: any) => {
-      // Check if this update was already dismissed
-      const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || Date.now().toString();
-      const dismissed = sessionStorage.getItem('update-dismissed-build');
-      
-      if (dismissed === buildTime) {
-        // Already dismissed this update in this session
-        return;
-      }
-      
       setUpdateAvailable(true);
     };
 
@@ -44,9 +35,6 @@ export default function AppUpdateNotification() {
   };
 
   const handleDismiss = () => {
-    // Store the dismissed build time in session storage
-    const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || Date.now().toString();
-    sessionStorage.setItem('update-dismissed-build', buildTime);
     setUpdateAvailable(false);
   };
 

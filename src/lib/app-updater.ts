@@ -14,34 +14,53 @@ class AppUpdater {
     if (typeof window === 'undefined') return;
     
     console.log('🚀 Initializing app updater...');
-    console.log('  Current version:', this.CURRENT_VERSION);
     console.log('  Current build:', new Date(parseInt(this.BUILD_TIME)).toISOString());
-    
-    // Check for app version updates
-    await this.checkAppVersion();
     
     // Register service worker and check for updates
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        this.registration = registration;
+        // Check if service worker is already registered by next-pwa
+        const registrations = await navigator.serviceWorker.getRegistrations();
         
-        // Check for service worker updates
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
+        if (registrations.length > 0) {
+          this.registration = registrations[0];
+          console.log('Using existing service worker registration');
+        } else {
+          // This shouldn't happen with next-pwa, but just in case
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          this.registration = registration;
+        }
+        
+        // Check for updates immediately
+        if (this.registration) {
+          this.registration.update();
+        }
+        
+        // Listen for update found
+        this.registration.addEventListener('updatefound', () => {
+          const newWorker = this.registration?.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 // New version available
+                console.log('🔄 New service worker installed, update available');
                 this.handleUpdateAvailable();
               }
             });
           }
         });
         
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'NEW_VERSION_AVAILABLE') {
+            this.handleUpdateAvailable();
+          }
+        });
+        
         // Listen for controller change (new SW activated)
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // Reload the page to get new content
+          // New service worker has taken control, reload the page
+          console.log('🔄 New service worker activated, reloading page');
           window.location.reload();
         });
         
@@ -51,105 +70,7 @@ class AppUpdater {
     }
   }
 
-  private async checkAppVersion() {
-    const storedVersion = localStorage.getItem(this.VERSION_KEY);
-    const storedBuildTime = localStorage.getItem(this.BUILD_TIME_KEY);
-    
-    // Check if this is a new build (different build time)
-    const isNewBuild = storedBuildTime && storedBuildTime !== this.BUILD_TIME;
-    
-    if (isNewBuild) {
-      console.log(`📱 New build detected:`);
-      console.log(`  Version: ${this.CURRENT_VERSION}`);
-      console.log(`  Previous build: ${new Date(parseInt(storedBuildTime)).toISOString()}`);
-      console.log(`  Current build: ${new Date(parseInt(this.BUILD_TIME)).toISOString()}`);
-      
-      // Don't update localStorage immediately - wait for user action
-      // This prevents the update loop
-      this.handleUpdateAvailable();
-    } else if (!storedBuildTime) {
-      // First time loading, just store the values
-      console.log('📱 First time app load, storing build info');
-      localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
-      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
-    } else {
-      // Build time matches - no update needed
-      console.log('✅ App is up to date');
-    }
-  }
 
-  private async clearAppCache() {
-    console.log('🔄 Clearing app cache...');
-    
-    try {
-      // 1. Update service worker (don't unregister - just update)
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        // Force update check for all service workers
-        await Promise.all(
-          registrations.map(registration => {
-            console.log('Updating service worker:', registration.scope);
-            return registration.update();
-          })
-        );
-      }
-      
-      // 2. Clear ALL caches
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(
-          cacheNames.map(cacheName => {
-            console.log('Deleting cache:', cacheName);
-            return caches.delete(cacheName);
-          })
-        );
-      }
-      
-      // 3. Clear localStorage data (keep auth and essential user data)
-      const keysToKeep = [
-        'supabase.auth.token',
-        'sb-',  // Keep all Supabase auth keys (they start with sb-)
-        'theme',
-        'pwa-install-dismissed',
-        'app-version',  // Keep version info
-        'app-build-time'  // Keep build time info
-      ];
-      
-      const savedData: Record<string, string> = {};
-      
-      // Save all keys that should be kept
-      Object.keys(localStorage).forEach(key => {
-        // Check if key should be kept
-        const shouldKeep = keysToKeep.some(keepKey => {
-          if (keepKey.endsWith('-')) {
-            // Prefix match (like 'sb-')
-            return key.startsWith(keepKey);
-          }
-          return key === keepKey;
-        });
-        
-        if (shouldKeep) {
-          const value = localStorage.getItem(key);
-          if (value) savedData[key] = value;
-        }
-      });
-      
-      // Clear all localStorage
-      localStorage.clear();
-      
-      // Restore saved data
-      Object.entries(savedData).forEach(([key, value]) => {
-        localStorage.setItem(key, value);
-      });
-      
-      // 4. Clear sessionStorage
-      sessionStorage.clear();
-      
-      console.log('✅ Cache and service workers cleared successfully');
-    } catch (error) {
-      console.error('Error clearing cache:', error);
-    }
-  }
 
   private handleUpdateAvailable() {
     this.updateAvailable = true;
@@ -163,22 +84,16 @@ class AppUpdater {
   async forceUpdate() {
     console.log('🔄 Forcing app update...');
     
-    // Update the stored version info NOW to prevent update loop
-    localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
-    localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
-    
-    // Update service worker if available
-    if (this.registration) {
-      await this.registration.update();
+    // If there's a waiting service worker, tell it to skip waiting
+    if (this.registration?.waiting) {
+      this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       
-      // If there's a waiting service worker, tell it to skip waiting
-      if (this.registration.waiting) {
-        this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
+      // The page will reload when the new service worker takes control
+      // This is handled by the controllerchange event listener
+    } else {
+      // If no waiting worker, just reload to get latest
+      window.location.reload();
     }
-    
-    // Just reload to get new content
-    window.location.reload();
   }
 
   getUpdateStatus() {

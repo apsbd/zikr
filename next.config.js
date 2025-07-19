@@ -5,8 +5,6 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: false, // Enable PWA in all environments for offline testing
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic files
-  customWorkerDir: 'public',
-  importScripts: ['simple-offline-sw.js'],
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
