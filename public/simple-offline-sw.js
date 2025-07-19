@@ -2,10 +2,12 @@
 console.log('[Simple SW] Loading simple offline service worker');
 
 // Cache name for study pages - increment version to force cache update
-const CACHE_NAME = 'study-pages-v4';
+const CACHE_NAME = 'study-pages-v5';
 const urlsToCache = [
   '/',
-  '/offline.html'
+  '/offline.html',
+  '/offline-study',
+  '/offline-study-static.html'
 ];
 
 // Listen for skip waiting message
@@ -19,10 +21,12 @@ self.addEventListener('message', (event) => {
 // Helper to determine if a request is for a study page
 function isStudyPageRequest(request) {
   const url = new URL(request.url);
+  // More permissive check for study pages
   return url.pathname.startsWith('/study/') && 
          (request.mode === 'navigate' || 
           request.destination === 'document' || 
-          request.headers.get('accept')?.includes('text/html'));
+          request.headers.get('accept')?.includes('text/html') ||
+          request.headers.get('X-Cache-Request') === 'true');
 }
 
 // Install event - cache essential files
@@ -74,59 +78,71 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           // Cache successful HTML responses
-          if (response && response.status === 200 && response.headers.get('content-type')?.includes('text/html')) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              console.log('[Simple SW] Caching study page:', url.pathname);
-              // Cache with the pathname as key for consistency
-              const cacheKey = new Request(url.pathname, {
-                method: 'GET',
-                headers: {'Content-Type': 'text/html'}
+          if (response && response.status === 200) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('text/html')) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                console.log('[Simple SW] Caching study page:', url.pathname);
+                // Cache with both the full URL and pathname
+                cache.put(request, responseToCache.clone());
+                cache.put(url.pathname, responseToCache);
               });
-              cache.put(cacheKey, responseToCache);
-            });
+            }
           }
           return response;
         })
         .catch((error) => {
           // When offline, try to serve from cache
           console.log('[Simple SW] Network failed, checking cache for:', url.pathname);
+          console.log('[Simple SW] Error:', error.message);
           
-          // Try with the pathname key first
-          const cacheKey = new Request(url.pathname, {
-            method: 'GET',
-            headers: {'Content-Type': 'text/html'}
-          });
-          
-          return caches.match(cacheKey).then((cachedResponse) => {
-            if (cachedResponse) {
-              console.log('[Simple SW] Found in cache with pathname key!');
-              return cachedResponse;
-            }
-            
-            // Try original request
-            return caches.match(request).then((cachedResponse2) => {
-              if (cachedResponse2) {
-                console.log('[Simple SW] Found in cache with original request!');
-                return cachedResponse2;
+          // Try multiple cache strategies
+          return caches.match(request, { ignoreSearch: true })
+            .then((response) => {
+              if (response) {
+                console.log('[Simple SW] Found in cache (ignoring search params)!');
+                return response;
               }
               
-              // Try any study page in cache as fallback
+              // Try with just the pathname
+              return caches.match(url.pathname);
+            })
+            .then((response) => {
+              if (response) {
+                console.log('[Simple SW] Found in cache with pathname!');
+                return response;
+              }
+              
+              // Try to find any study page in cache
               return caches.open(CACHE_NAME).then(cache => {
                 return cache.keys().then(keys => {
-                  const studyKey = keys.find(key => key.url.includes('/study/'));
+                  console.log('[Simple SW] Cache keys:', keys.map(k => k.url));
+                  
+                  // Find a study page that matches the deck ID
+                  const studyKey = keys.find(key => {
+                    const keyUrl = new URL(key.url);
+                    return keyUrl.pathname === url.pathname;
+                  });
+                  
                   if (studyKey) {
-                    console.log('[Simple SW] Using fallback study page from cache');
+                    console.log('[Simple SW] Found matching study page in cache');
                     return cache.match(studyKey);
                   }
                   
-                  // Last resort: offline page
-                  console.log('[Simple SW] No cached study page, returning offline page');
-                  return caches.match('/offline.html');
+                  // If no exact match, return static offline-study page
+                  console.log('[Simple SW] No cached study page, returning offline-study-static');
+                  return caches.match('/offline-study-static.html?path=' + encodeURIComponent(url.pathname))
+                    .then(response => {
+                      if (response) {
+                        // Clone and modify the response to include the path parameter
+                        return response;
+                      }
+                      return caches.match('/offline.html');
+                    });
                 });
               });
             });
-          });
         })
     );
     return;

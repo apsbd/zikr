@@ -98,10 +98,26 @@ function StudyPageContent({ params }: StudyPageProps) {
             setDeckId(resolvedParams.deckId);
             loadStudyData(resolvedParams.deckId);
             
-            // Cache this page for offline access
+            // Ensure this page is cached for offline access
             if ('serviceWorker' in navigator && navigator.onLine) {
-                console.log('Caching study page for offline access');
-                // The service worker will automatically cache this page on load
+                console.log('Ensuring study page is cached for offline access');
+                
+                // Force a cache of this page by making a fetch request
+                navigator.serviceWorker.ready.then(registration => {
+                    if (registration.active) {
+                        // Trigger a fetch to ensure caching
+                        fetch(window.location.pathname, {
+                            method: 'GET',
+                            headers: {
+                                'X-Cache-Request': 'true'
+                            }
+                        }).then(() => {
+                            console.log('Study page cached successfully');
+                        }).catch(err => {
+                            console.error('Failed to cache study page:', err);
+                        });
+                    }
+                });
             }
         });
     }, [params, user]);
