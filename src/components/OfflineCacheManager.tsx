@@ -35,10 +35,18 @@ export function OfflineCacheManager() {
         // Pre-fetch pages to ensure they're cached
         for (const page of pagesToCache) {
           try {
-            await fetch(page, { 
-              mode: 'no-cors',
-              cache: 'force-cache' 
+            // Fetch the page with credentials to ensure proper loading
+            const response = await fetch(page, { 
+              credentials: 'include',
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml'
+              }
             });
+            
+            if (response.ok) {
+              // Page fetched successfully, it should now be in cache
+              console.log(`✓ Pre-cached ${page}`);
+            }
           } catch (error) {
             console.log(`Failed to pre-cache ${page}:`, error);
           }

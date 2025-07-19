@@ -141,6 +141,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { offlineService } = await import('@/lib/offline');
         await offlineService.logout();
+        
+        // Clear auto-download flag so it can retry on next login
+        localStorage.removeItem(`auto-download-attempted-${user.id}`);
       } catch (error) {
         console.error('Error during sync cleanup:', error);
       }

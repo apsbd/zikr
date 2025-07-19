@@ -9,6 +9,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(clients.claim());
 });
 
+
 // Cache API responses for offline use
 self.addEventListener('fetch', (event) => {
   const { request } = event;

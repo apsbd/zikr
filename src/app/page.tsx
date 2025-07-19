@@ -16,6 +16,7 @@ import LandingPage from '@/components/LandingPage';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { SyncDialog } from '@/components/SyncDialog';
+import { scrollPosition } from '@/lib/scroll-position';
 
 function Dashboard() {
     const router = useRouter();
@@ -28,6 +29,7 @@ function Dashboard() {
     const [isInitialized, setIsInitialized] = useState(false);
     const [syncDialogOpen, setSyncDialogOpen] = useState(false);
     const loadDecksTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
 
     const loadDecks = async () => {
         if (!user) return;
@@ -83,6 +85,32 @@ function Dashboard() {
                 // Load decks immediately after login completes
                 await loadDecks();
                 
+                // Check if we should auto-download data
+                const autoDownloadKey = `auto-download-attempted-${user.id}`;
+                const hasAttemptedDownload = localStorage.getItem(autoDownloadKey);
+                
+                if (!hasAttemptedDownload && isOnline) {
+                    // Check if user has any decks
+                    const decks = await offlineService.getDecks();
+                    if (!decks || decks.length === 0) {
+                        // Mark that we've attempted auto-download
+                        localStorage.setItem(autoDownloadKey, 'true');
+                        
+                        // Trigger download from server
+                        console.log('📥 No decks found, triggering auto-download...');
+                        try {
+                            const result = await offlineService.performManualDownload(user.id);
+                            if (result.success) {
+                                console.log(`✅ Auto-download successful: ${result.synced_count} items downloaded`);
+                                // Reload decks after download
+                                await loadDecks();
+                            }
+                        } catch (error) {
+                            console.error('❌ Auto-download failed:', error);
+                        }
+                    }
+                }
+                
                 // Refresh sync status
                 await refreshStatus();
             } catch (err) {
@@ -93,7 +121,7 @@ function Dashboard() {
         };
         
         initializeOfflineService();
-    }, [user?.id]); // Only depend on user.id, not the entire user object
+    }, [user?.id, isOnline]); // Depend on user.id and isOnline
     
     // Refresh when the refresh param changes (when returning from study)
     // Remove refresh parameter handling as it causes offline page issues
@@ -150,18 +178,45 @@ function Dashboard() {
         return () => clearInterval(intervalId);
     }, [user, isInitialized, displayDecks]);
 
+    // Restore scroll position when decks are loaded
+    useEffect(() => {
+        if (displayDecks.length > 0 && scrollAreaRef.current) {
+            setTimeout(() => {
+                const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+                if (viewport) {
+                    const savedPosition = scrollPosition.getPosition('dashboard');
+                    viewport.scrollTop = savedPosition;
+                }
+            }, 100);
+        }
+    }, [displayDecks]);
 
     const handleStudy = (deckId: string) => {
-        router.push(`/study/${deckId}`);
+        // Save scroll position before navigating
+        if (scrollAreaRef.current) {
+            const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            if (viewport) {
+                scrollPosition.savePosition('dashboard', viewport.scrollTop);
+            }
+        }
+        
+        // If offline, redirect to offline-study page with deck ID
+        if (!isOnline) {
+            localStorage.setItem('offline-study-deck-id', deckId);
+            router.push('/offline-study');
+        } else {
+            router.push(`/study/${deckId}`);
+        }
     };
 
     return (
         <div className='min-h-screen'>
             <UserProfile />
             <ScrollArea
+                ref={scrollAreaRef}
                 className='h-screen w-full'
                 style={{ height: 'calc(100vh - 80px )' }}>
-                <div className='w-full sm:max-w-4xl sm:mx-auto py-8 px-2 sm:px-4 lg:px-8'>
+                <div className='w-full sm:max-w-4xl sm:mx-auto py-8 px-2 sm:px-4 lg:px-8 pb-24'>
                     {/* Removed automatic sync status - now manual only */}
                     
                     {/* Sync Button */}
