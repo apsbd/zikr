@@ -97,15 +97,7 @@ function Dashboard() {
     }, [user?.id]); // Only depend on user.id, not the entire user object
     
     // Refresh when the refresh param changes (when returning from study)
-    useEffect(() => {
-        if (!isInitialized || !user) return;
-        
-        const refreshParam = searchParams.get('refresh');
-        if (refreshParam) {
-            // Use immediate load when explicitly refreshing
-            loadDecks();
-        }
-    }, [searchParams, isInitialized, user]);
+    // Remove refresh parameter handling as it causes offline page issues
 
     // Force refresh when returning to dashboard
     useEffect(() => {

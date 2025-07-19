@@ -215,8 +215,8 @@ function StudyPageContent({ params }: StudyPageProps) {
     const handleReturnToDashboard = async () => {
         // Increased delay to ensure IndexedDB writes are fully complete
         await new Promise(resolve => setTimeout(resolve, 500));
-        // Force a refresh by adding a timestamp query param
-        router.push('/?refresh=' + Date.now());
+        // Navigate to dashboard without query params
+        router.push('/');
     };
 
     const handleStudyAgain = async () => {
