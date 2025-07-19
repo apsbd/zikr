@@ -1154,6 +1154,8 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       return null;
     }
     
+    console.log('Fetching user profile for userId:', userId);
+    
     const { data, error } = await supabase
       .from('user_profiles')
       .select('*')
@@ -1168,6 +1170,17 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
         hint: error.hint,
         code: error.code
       });
+      
+      // If profile doesn't exist, try to get user email and create profile
+      if (error.code === 'PGRST116') { // Row not found
+        console.log('Profile not found, attempting to get user email for creation');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.id === userId) {
+          console.log('Creating profile for user:', user.email);
+          return await initializeUserProfile(userId, user.email || '');
+        }
+      }
+      
       return null;
     }
 
@@ -1406,10 +1419,15 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
       return false;
     }
     
-    const profile = await getUserProfile(userId);
+    // For server-side, query database directly instead of using getUserProfile
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
     
-    if (!profile) {
-      console.log('isUserAdmin: No profile found for userId:', userId);
+    if (error || !profile) {
+      console.log('isUserAdmin: No profile found for userId:', userId, error);
       return false;
     }
     
@@ -1426,10 +1444,15 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
 // Check if user is superuser
 export async function isUserSuperuser(userId: string): Promise<boolean> {
   try {
-    const profile = await getUserProfile(userId);
+    // For server-side, query database directly
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
     
-    if (!profile) {
-      console.log('No profile found for user:', userId);
+    if (error || !profile) {
+      console.log('No profile found for user:', userId, error);
       return false;
     }
     
