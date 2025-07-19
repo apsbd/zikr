@@ -51,48 +51,87 @@ class AppUpdater {
     const storedVersion = localStorage.getItem(this.VERSION_KEY);
     const storedBuildTime = localStorage.getItem(this.BUILD_TIME_KEY);
     
-    // Only check version, not build time, to avoid infinite reloads
-    if (storedVersion && storedVersion !== this.CURRENT_VERSION) {
-      console.log('App version updated, clearing caches...');
+    // Check both version and build time for updates
+    const versionChanged = storedVersion && storedVersion !== this.CURRENT_VERSION;
+    const buildTimeChanged = storedBuildTime && storedBuildTime !== this.BUILD_TIME;
+    
+    if (versionChanged || buildTimeChanged) {
+      console.log(`📱 App update detected:`);
+      console.log(`  Version: ${storedVersion} → ${this.CURRENT_VERSION}`);
+      console.log(`  Build: ${storedBuildTime} → ${this.BUILD_TIME}`);
+      
+      // Clear everything before updating
       await this.clearAppCache();
+      
+      // Store new version and build time
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
       
       // Force reload to get new content
-      window.location.reload();
-    } else if (!storedVersion) {
-      // First time loading, just store the version without reloading
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } else if (!storedVersion || !storedBuildTime) {
+      // First time loading, just store the values without reloading
+      console.log('📱 First time app load, storing version info');
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
-      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
-    } else {
-      // Same version, just update build time silently
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
     }
   }
 
   private async clearAppCache() {
-    // Clear localStorage data (keep user data, clear app cache)
-    const keysToKeep = ['app-data-', 'supabase.auth.token']; // Keep user data
-    const keys = Object.keys(localStorage);
+    console.log('🔄 Clearing app cache and service workers...');
     
-    keys.forEach(key => {
-      const shouldKeep = keysToKeep.some(prefix => key.startsWith(prefix));
-      if (!shouldKeep) {
-        localStorage.removeItem(key);
+    try {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(
+          registrations.map(registration => {
+            console.log('Unregistering service worker:', registration.scope);
+            return registration.unregister();
+          })
+        );
       }
-    });
-
-    // Clear service worker caches
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map(cacheName => {
-          // Keep user data caches, clear app caches
-          if (!cacheName.includes('user-data')) {
+      
+      // 2. Clear ALL caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(cacheName => {
+            console.log('Deleting cache:', cacheName);
             return caches.delete(cacheName);
-          }
-        })
-      );
+          })
+        );
+      }
+      
+      // 3. Clear localStorage data (keep only essential user data)
+      const keysToKeep = [
+        'supabase.auth.token',
+        'theme',
+        'pwa-install-dismissed'
+      ];
+      
+      const savedData: Record<string, string> = {};
+      keysToKeep.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) savedData[key] = value;
+      });
+      
+      // Clear all localStorage
+      localStorage.clear();
+      
+      // Restore essential data
+      Object.entries(savedData).forEach(([key, value]) => {
+        localStorage.setItem(key, value);
+      });
+      
+      // 4. Clear sessionStorage
+      sessionStorage.clear();
+      
+      console.log('✅ Cache and service workers cleared successfully');
+    } catch (error) {
+      console.error('Error clearing cache:', error);
     }
   }
 
@@ -106,14 +145,21 @@ class AppUpdater {
   }
 
   async forceUpdate() {
+    console.log('🔄 Forcing app update...');
+    
+    // Always clear cache when forcing update
+    await this.clearAppCache();
+    
+    // If there's a waiting service worker, tell it to skip waiting
     if (this.registration && this.registration.waiting) {
-      // Tell the waiting service worker to skip waiting
       this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      // Manual reload
-      await this.clearAppCache();
-      window.location.reload();
     }
+    
+    // Force reload to get new content
+    // Use a small delay to ensure cache clearing completes
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   }
 
   getUpdateStatus() {

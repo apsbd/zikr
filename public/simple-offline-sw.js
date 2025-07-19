@@ -1,12 +1,20 @@
 // Simple offline service worker that actually works
 console.log('[Simple SW] Loading simple offline service worker');
 
-// Cache name for study pages
-const CACHE_NAME = 'study-pages-v3';
+// Cache name for study pages - increment version to force cache update
+const CACHE_NAME = 'study-pages-v4';
 const urlsToCache = [
   '/',
   '/offline.html'
 ];
+
+// Listen for skip waiting message
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Simple SW] Received SKIP_WAITING, activating immediately');
+    self.skipWaiting();
+  }
+});
 
 // Helper to determine if a request is for a study page
 function isStudyPageRequest(request) {
