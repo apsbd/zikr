@@ -54,19 +54,12 @@ function StudyPageContent({ params }: StudyPageProps) {
             
             console.log('🔒 Offline-first mode: Loading from local data only');
             
-            // Get deck metadata from offline service
+            // Always try to get deck metadata from offline service (IndexedDB)
             const deck = await offlineService.getDeck(deckId);
             setCurrentDeck(deck);
             
-            if (!deck) {
-                // Don't show error immediately if offline, try to wait for initialization
-                if (!isOnline && !isRetry) {
-                    setTimeout(() => loadStudyData(deckId, true), 1000);
-                    return;
-                }
-                setError(!isOnline ? 'Deck not available offline. Please connect to internet to sync.' : 'Deck not found');
-                return;
-            }
+            // Even if deck doesn't exist yet, continue to show loading state
+            // The deck data will be available after user syncs
             
             // Get study cards from offline service (only due cards)
             const cards = await offlineService.getDueCards(deckId);
@@ -94,27 +87,7 @@ function StudyPageContent({ params }: StudyPageProps) {
             setDeckId(resolvedParams.deckId);
             loadStudyData(resolvedParams.deckId);
             
-            // Ensure this page is cached for offline access
-            if ('serviceWorker' in navigator && navigator.onLine) {
-                console.log('Ensuring study page is cached for offline access');
-                
-                // Force a cache of this page by making a fetch request
-                navigator.serviceWorker.ready.then(registration => {
-                    if (registration.active) {
-                        // Trigger a fetch to ensure caching
-                        fetch(window.location.pathname, {
-                            method: 'GET',
-                            headers: {
-                                'X-Cache-Request': 'true'
-                            }
-                        }).then(() => {
-                            console.log('Study page cached successfully');
-                        }).catch(err => {
-                            console.error('Failed to cache study page:', err);
-                        });
-                    }
-                });
-            }
+            // No caching needed - all data comes from IndexedDB
         });
     }, [params, user]);
 
@@ -244,12 +217,15 @@ function StudyPageContent({ params }: StudyPageProps) {
                         <BackButton href='/' />
                     </div>
                     <div className='text-center py-12'>
-                        {isFullSyncRunning && (
-                            <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
-                        )}
+                        <div className='w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
                         <p className='text-muted-foreground'>
-                            {isFullSyncRunning ? 'Syncing data...' : 'Loading study session...'}
+                            Loading study data from local storage...
                         </p>
+                        {!currentDeck && (
+                            <p className='text-sm text-muted-foreground mt-2'>
+                                If this is your first time, please sync data from the dashboard
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -321,16 +297,34 @@ function StudyPageContent({ params }: StudyPageProps) {
         );
     }
 
-    if (!currentDeck || !studyData) {
+    if (!currentDeck) {
         return (
             <div className='min-h-screen bg-background p-4'>
                 <div className='max-w-2xl mx-auto'>
                     <div className='mb-4'>
                         <BackButton href='/' />
                     </div>
-                    <div className='text-center py-12'>
-                        <p className='text-destructive'>Deck not found</p>
-                    </div>
+                    <Card className='max-w-md mx-auto'>
+                        <CardContent className='p-8 text-center'>
+                            <div className='w-16 h-16 text-primary mx-auto mb-4'>
+                                <svg fill='currentColor' viewBox='0 0 20 20'>
+                                    <path fillRule='evenodd' d='M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z' clipRule='evenodd' />
+                                </svg>
+                            </div>
+                            <h2 className='text-2xl font-bold mb-2'>
+                                Deck Not Available
+                            </h2>
+                            <p className='text-muted-foreground mb-6'>
+                                This deck hasn't been synced to your device yet.
+                                Please go to the dashboard and sync your data.
+                            </p>
+                            <Button
+                                onClick={handleReturnToDashboard}
+                                className='w-full'>
+                                Go to Dashboard
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );

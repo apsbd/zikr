@@ -695,67 +695,8 @@ export class SyncEngine {
   async performDownloadSync(userId: string): Promise<SyncResult> {
     console.log('📥 Starting manual download sync (server → local)');
     
-    const result: SyncResult = {
-      success: false,
-      synced_count: 0,
-      failed_count: 0,
-      conflicts: [],
-      last_sync_timestamp: new Date().toISOString()
-    };
-
-    try {
-      // 1. Clear local user progress first
-      const localProgress = await this.db.getByIndex<OfflineUserProgress>(
-        STORE_NAMES.USER_PROGRESS,
-        'user_id',
-        userId
-      );
-      
-      for (const progress of localProgress) {
-        await this.db.delete(STORE_NAMES.USER_PROGRESS, progress.id);
-      }
-      
-      console.log(`Cleared ${localProgress.length} local progress records`);
-      
-      // 2. Download all user progress from server
-      const { data: serverProgress, error } = await this.supabase
-        .from('user_progress')
-        .select('*')
-        .eq('user_id', userId);
-      
-      if (error) {
-        throw error;
-      }
-      
-      console.log(`Found ${serverProgress?.length || 0} server progress records to download`);
-      
-      // 3. Save each progress record locally
-      if (serverProgress) {
-        for (const progress of serverProgress) {
-          try {
-            await this.db.put(STORE_NAMES.USER_PROGRESS, {
-              ...progress,
-              sync_status: SyncStatus.SYNCED,
-              local_changes: false
-            });
-            result.synced_count++;
-          } catch (err) {
-            console.error('Failed to save progress locally:', err);
-            result.failed_count++;
-          }
-        }
-      }
-      
-      result.success = result.failed_count === 0;
-      await this.db.setMetadata('last_download_sync', new Date().toISOString());
-      
-      console.log(`✅ Download sync completed: ${result.synced_count} downloaded, ${result.failed_count} failed`);
-      
-    } catch (error) {
-      console.error('Download sync failed:', error);
-      result.success = false;
-    }
-    
-    return result;
+    // Use the existing performFullSync method which downloads everything
+    // This ensures all decks, cards, and progress are downloaded
+    return this.performFullSync(userId);
   }
 }

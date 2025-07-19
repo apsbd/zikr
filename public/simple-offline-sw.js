@@ -1,181 +1,47 @@
-// Simple offline service worker that actually works
-console.log('[Simple SW] Loading simple offline service worker');
-
-// Cache name for study pages - increment version to force cache update
-const CACHE_NAME = 'study-pages-v6';
-const urlsToCache = [
-  '/',
-  '/offline.html',
-  '/offline-study',
-  '/offline-study-static.html'
-];
+// Minimal offline service worker - no caching, only IndexedDB
+console.log('[Minimal SW] Loading minimal offline service worker');
 
 // Listen for skip waiting message
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[Simple SW] Received SKIP_WAITING, activating immediately');
+    console.log('[Minimal SW] Received SKIP_WAITING, activating immediately');
     self.skipWaiting();
   }
 });
 
-// Helper to determine if a request is for a study page
-function isStudyPageRequest(request) {
-  const url = new URL(request.url);
-  // More permissive check for study pages
-  return url.pathname.startsWith('/study/') && 
-         (request.mode === 'navigate' || 
-          request.destination === 'document' || 
-          request.headers.get('accept')?.includes('text/html') ||
-          request.headers.get('X-Cache-Request') === 'true');
-}
-
-// Install event - cache essential files
+// Install event - skip waiting immediately
 self.addEventListener('install', (event) => {
-  console.log('[Simple SW] Installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Simple SW] Caching app shell');
-      return cache.addAll(urlsToCache);
-    })
-  );
+  console.log('[Minimal SW] Installing...');
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - take control immediately
 self.addEventListener('activate', (event) => {
-  console.log('[Simple SW] Activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName.startsWith('study-pages')) {
-            console.log('[Simple SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      // Immediately cache essential offline pages
-      return caches.open(CACHE_NAME).then((cache) => {
-        console.log('[Simple SW] Pre-caching offline pages');
-        return cache.addAll(urlsToCache);
-      });
+  console.log('[Minimal SW] Activating...');
+  event.waitUntil(clients.claim());
+});
+
+// Fetch event - always try network, no caching
+self.addEventListener('fetch', (event) => {
+  // For offline requests, let the app handle it via IndexedDB
+  // The service worker doesn't cache anything
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      // If offline and it's a navigation request, return offline page
+      if (event.request.mode === 'navigate') {
+        return caches.match('/offline.html').catch(() => {
+          // If offline.html is not cached, return a basic offline response
+          return new Response('Offline - Please check your connection', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({
+              'Content-Type': 'text/plain'
+            })
+          });
+        });
+      }
+      // For other requests, just fail
+      return Promise.reject('Offline');
     })
   );
-  self.clients.claim();
 });
-
-// Fetch event - serve from cache when offline
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  // Skip non-http(s) requests
-  if (!url.protocol.startsWith('http')) {
-    return;
-  }
-  
-  // Handle study page requests
-  if (isStudyPageRequest(request)) {
-    console.log('[Simple SW] Handling study page request:', url.pathname);
-    
-    event.respondWith(
-      // Try network first
-      fetch(request)
-        .then((response) => {
-          // Cache successful HTML responses
-          if (response && response.status === 200) {
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('text/html')) {
-              const responseToCache = response.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                console.log('[Simple SW] Caching study page:', url.pathname);
-                // Cache with both the full URL and pathname
-                cache.put(request, responseToCache.clone());
-                cache.put(url.pathname, responseToCache);
-              });
-            }
-          }
-          return response;
-        })
-        .catch((error) => {
-          // When offline, try to serve from cache
-          console.log('[Simple SW] Network failed, checking cache for:', url.pathname);
-          console.log('[Simple SW] Error:', error.message);
-          
-          // Try multiple cache strategies
-          return caches.match(request, { ignoreSearch: true })
-            .then((response) => {
-              if (response) {
-                console.log('[Simple SW] Found in cache (ignoring search params)!');
-                return response;
-              }
-              
-              // Try with just the pathname
-              return caches.match(url.pathname);
-            })
-            .then((response) => {
-              if (response) {
-                console.log('[Simple SW] Found in cache with pathname!');
-                return response;
-              }
-              
-              // Try to find any study page in cache
-              return caches.open(CACHE_NAME).then(cache => {
-                return cache.keys().then(keys => {
-                  console.log('[Simple SW] Cache keys:', keys.map(k => k.url));
-                  
-                  // Find a study page that matches the deck ID
-                  const studyKey = keys.find(key => {
-                    const keyUrl = new URL(key.url);
-                    return keyUrl.pathname === url.pathname;
-                  });
-                  
-                  if (studyKey) {
-                    console.log('[Simple SW] Found matching study page in cache');
-                    return cache.match(studyKey);
-                  }
-                  
-                  // If no exact match, return static offline-study page
-                  console.log('[Simple SW] No cached study page, returning offline page');
-                  // First try the offline-study-static page
-                  return caches.match('/offline-study-static.html').then(response => {
-                    if (response) {
-                      return response;
-                    }
-                    // Fallback to general offline page
-                    return caches.match('/offline.html').then(response => {
-                      if (response) {
-                        return response;
-                      }
-                      // Last resort - return a basic offline response
-                      return new Response('Offline - Please check your connection', {
-                        status: 503,
-                        statusText: 'Service Unavailable',
-                        headers: new Headers({
-                          'Content-Type': 'text/plain'
-                        })
-                      });
-                    });
-                  });
-                });
-              });
-            });
-        })
-    );
-    return;
-  }
-  
-  // For other navigation requests to our domain
-  if (request.mode === 'navigate' && url.origin === location.origin) {
-    event.respondWith(
-      fetch(request).catch(() => {
-        return caches.match(request).then((cachedResponse) => {
-          return cachedResponse || caches.match('/offline.html');
-        });
-      })
-    );
-  }
-});
-
-console.log('[Simple SW] Simple offline service worker loaded');
