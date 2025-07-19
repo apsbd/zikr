@@ -33,6 +33,7 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
     const handleUpload = async () => {
         if (!user) return;
         
+        console.log('Starting upload sync for user:', user.id);
         setSyncStatus('uploading');
         setProgress(0);
         setError(null);
@@ -40,13 +41,16 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
 
         try {
             // Ensure offline service is initialized
+            console.log('Initializing offline service...');
             await offlineService.init();
             
             setProgress(20);
             setMessage('Uploading your progress to the server...');
             
             // Perform upload sync (local → server)
+            console.log('Calling performManualUpload...');
             const result = await offlineService.performManualUpload(user.id);
+            console.log('Upload result:', result);
             
             setProgress(100);
             
@@ -66,7 +70,8 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
             }, 2000);
             
         } catch (err: any) {
-            console.error('Upload error:', err);
+            console.error('Upload error full details:', err);
+            console.error('Error stack:', err.stack);
             setSyncStatus('error');
             setError(err.message || 'Failed to upload progress. Please check your connection and try again.');
             setProgress(0);
@@ -76,6 +81,7 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
     const handleDownload = async () => {
         if (!user) return;
         
+        console.log('Starting download sync for user:', user.id);
         setSyncStatus('downloading');
         setProgress(0);
         setError(null);
@@ -83,13 +89,16 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
 
         try {
             // Ensure offline service is initialized
+            console.log('Initializing offline service...');
             await offlineService.init();
             
             setProgress(20);
             setMessage('Downloading progress from the server...');
             
             // Perform download sync (server → local)
+            console.log('Calling performManualDownload...');
             const result = await offlineService.performManualDownload(user.id);
+            console.log('Download result:', result);
             
             setProgress(100);
             
@@ -109,7 +118,8 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
             }, 2000);
             
         } catch (err: any) {
-            console.error('Download error:', err);
+            console.error('Download error full details:', err);
+            console.error('Error stack:', err.stack);
             setSyncStatus('error');
             setError(err.message || 'Failed to download progress. Please check your connection and try again.');
             setProgress(0);
@@ -204,6 +214,19 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
                             <p className="text-sm text-center text-muted-foreground">
                                 {message}
                             </p>
+                        </div>
+                        <div className="mt-4">
+                            <Button
+                                onClick={() => {
+                                    console.log('Cancelling sync operation...');
+                                    resetDialog();
+                                    onOpenChange(false);
+                                }}
+                                variant="outline"
+                                className="w-full"
+                            >
+                                Cancel
+                            </Button>
                         </div>
                     </div>
                 )}

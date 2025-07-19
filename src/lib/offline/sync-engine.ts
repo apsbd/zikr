@@ -93,7 +93,9 @@ export class SyncEngine {
       
       console.log('📋 Processing sync queue...');
       await this.syncQueue.processQueue();
+      console.log('📋 Sync queue processed');
       
+      console.log('📥 Fetching remote data...');
       const [
         remoteDecks,
         remoteCards, 
@@ -107,6 +109,14 @@ export class SyncEngine {
         this.fetchRemoteUserProfiles(userId),
         this.fetchRemoteDeckUserAccess(userId)
       ]);
+      
+      console.log('📥 Remote data fetched:', {
+        decks: remoteDecks.length,
+        cards: remoteCards.length,
+        progress: remoteProgress.length,
+        profiles: remoteProfiles.length,
+        access: remoteAccess.length
+      });
 
 
       const syncResults = await Promise.allSettled([
@@ -149,12 +159,19 @@ export class SyncEngine {
 
   private async fetchRemoteDecks(userId: string): Promise<OfflineDeck[]> {
     try {
+      console.log('🔍 fetchRemoteDecks: Fetching decks for user:', userId);
+      
       // First check if user is admin or superuser
+      console.log('🔍 Checking user profile...');
       const { data: userProfile, error: profileError } = await this.supabase
         .from('user_profiles')
         .select('role')
         .eq('user_id', userId)
         .single();
+        
+      if (profileError) {
+        console.error('🔍 Error fetching user profile:', profileError);
+      }
 
       const isAdmin = userProfile?.role === 'admin' || userProfile?.role === 'superuser';
       console.log(`User ${userId} admin status:`, isAdmin);
@@ -704,9 +721,19 @@ export class SyncEngine {
   
   async performDownloadSync(userId: string): Promise<SyncResult> {
     console.log('📥 Starting manual download sync (server → local)');
+    console.log('📥 User ID:', userId);
     
-    // Use the existing performFullSync method which downloads everything
-    // This ensures all decks, cards, and progress are downloaded
-    return this.performFullSync(userId);
+    try {
+      // Use the existing performFullSync method which downloads everything
+      // This ensures all decks, cards, and progress are downloaded
+      console.log('📥 Calling performFullSync...');
+      const result = await this.performFullSync(userId);
+      console.log('📥 performFullSync completed:', result);
+      return result;
+    } catch (error: any) {
+      console.error('📥 performDownloadSync error:', error);
+      console.error('📥 Error stack:', error.stack);
+      throw error;
+    }
   }
 }
