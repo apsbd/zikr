@@ -12,12 +12,25 @@ export default function DebugPage() {
   const [debugData, setDebugData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [testData, setTestData] = useState<any>(null);
 
   const fetchDebugData = async () => {
     setLoading(true);
+    setDebugData({ status: 'Starting fetch...' });
+    
     try {
       // Get the current session
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        setDebugData({ 
+          error: 'Session error', 
+          details: sessionError.message,
+          note: 'Failed to get auth session' 
+        });
+        setLoading(false);
+        return;
+      }
       
       if (!session) {
         setDebugData({ error: 'No active session', note: 'Please log in first' });
@@ -25,16 +38,37 @@ export default function DebugPage() {
         return;
       }
 
+      setDebugData({ status: 'Got session, making API call...' });
+
       const response = await fetch('/api/debug-auth', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        setDebugData({ 
+          error: 'API call failed', 
+          status: response.status,
+          statusText: response.statusText,
+          details: errorText
+        });
+        setLoading(false);
+        return;
+      }
+      
       const data = await response.json();
       setDebugData(data);
     } catch (error) {
-      setDebugData({ error: 'Failed to fetch debug data', details: error });
+      console.error('Debug fetch error:', error);
+      setDebugData({ 
+        error: 'Failed to fetch debug data', 
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
     setLoading(false);
   };
@@ -67,9 +101,41 @@ export default function DebugPage() {
               </pre>
             </div>
 
-            <Button onClick={fetchDebugData} disabled={loading}>
-              {loading ? 'Loading...' : 'Fetch Debug Data'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => {
+                  console.log('Debug button clicked');
+                  fetchDebugData();
+                }} 
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Fetch Debug Data'}
+              </Button>
+              
+              <Button 
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/test');
+                    const data = await response.json();
+                    setTestData(data);
+                  } catch (error) {
+                    setTestData({ error: 'Test API failed', details: String(error) });
+                  }
+                }} 
+                variant="outline"
+              >
+                Test API
+              </Button>
+            </div>
+            
+            {testData && (
+              <div className="mt-4 p-3 bg-muted rounded">
+                <h4 className="font-semibold mb-2">Test API Response:</h4>
+                <pre className="text-xs">
+                  {JSON.stringify(testData, null, 2)}
+                </pre>
+              </div>
+            )}
 
             {debugData && (
               <div>
