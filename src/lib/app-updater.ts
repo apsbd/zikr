@@ -13,6 +13,10 @@ class AppUpdater {
   async initialize() {
     if (typeof window === 'undefined') return;
     
+    console.log('🚀 Initializing app updater...');
+    console.log('  Current version:', this.CURRENT_VERSION);
+    console.log('  Current build:', new Date(parseInt(this.BUILD_TIME)).toISOString());
+    
     // Check for app version updates
     await this.checkAppVersion();
     
@@ -60,24 +64,21 @@ class AppUpdater {
       console.log(`  Previous build: ${new Date(parseInt(storedBuildTime)).toISOString()}`);
       console.log(`  Current build: ${new Date(parseInt(this.BUILD_TIME)).toISOString()}`);
       
-      // Store the new build time BEFORE clearing cache to prevent loops
+      // Just update the stored version info
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
       
-      // Clear everything and reload
-      await this.clearAppCache();
-      
-      // Force reload to get new content
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      // Notify that an update is available
+      this.handleUpdateAvailable();
     } else if (!storedBuildTime) {
-      // First time loading, just store the values without reloading
+      // First time loading, just store the values
       console.log('📱 First time app load, storing build info');
       localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
       localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
+    } else {
+      // Build time matches - no update needed
+      console.log('✅ App is up to date');
     }
-    // If build time matches, do nothing (prevents infinite loops)
   }
 
   private async clearAppCache() {
@@ -107,23 +108,39 @@ class AppUpdater {
         );
       }
       
-      // 3. Clear localStorage data (keep only essential user data)
+      // 3. Clear localStorage data (keep auth and essential user data)
       const keysToKeep = [
         'supabase.auth.token',
+        'sb-',  // Keep all Supabase auth keys (they start with sb-)
         'theme',
-        'pwa-install-dismissed'
+        'pwa-install-dismissed',
+        'app-version',  // Keep version info
+        'app-build-time'  // Keep build time info
       ];
       
       const savedData: Record<string, string> = {};
-      keysToKeep.forEach(key => {
-        const value = localStorage.getItem(key);
-        if (value) savedData[key] = value;
+      
+      // Save all keys that should be kept
+      Object.keys(localStorage).forEach(key => {
+        // Check if key should be kept
+        const shouldKeep = keysToKeep.some(keepKey => {
+          if (keepKey.endsWith('-')) {
+            // Prefix match (like 'sb-')
+            return key.startsWith(keepKey);
+          }
+          return key === keepKey;
+        });
+        
+        if (shouldKeep) {
+          const value = localStorage.getItem(key);
+          if (value) savedData[key] = value;
+        }
       });
       
       // Clear all localStorage
       localStorage.clear();
       
-      // Restore essential data
+      // Restore saved data
       Object.entries(savedData).forEach(([key, value]) => {
         localStorage.setItem(key, value);
       });
@@ -149,19 +166,18 @@ class AppUpdater {
   async forceUpdate() {
     console.log('🔄 Forcing app update...');
     
-    // Always clear cache when forcing update
-    await this.clearAppCache();
-    
-    // If there's a waiting service worker, tell it to skip waiting
-    if (this.registration && this.registration.waiting) {
-      this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // Update service worker if available
+    if (this.registration) {
+      await this.registration.update();
+      
+      // If there's a waiting service worker, tell it to skip waiting
+      if (this.registration.waiting) {
+        this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
     }
     
-    // Force reload to get new content
-    // Use a small delay to ensure cache clearing completes
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+    // Just reload to get new content
+    window.location.reload();
   }
 
   getUpdateStatus() {
