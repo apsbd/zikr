@@ -7,9 +7,19 @@ import { RefreshCw, X } from 'lucide-react';
 export default function AppUpdateNotification() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [dismissedBuildTime, setDismissedBuildTime] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleUpdateAvailable = () => {
+    const handleUpdateAvailable = (event: any) => {
+      // Check if this update was already dismissed
+      const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || Date.now().toString();
+      const dismissed = sessionStorage.getItem('update-dismissed-build');
+      
+      if (dismissed === buildTime) {
+        // Already dismissed this update in this session
+        return;
+      }
+      
       setUpdateAvailable(true);
     };
 
@@ -34,6 +44,9 @@ export default function AppUpdateNotification() {
   };
 
   const handleDismiss = () => {
+    // Store the dismissed build time in session storage
+    const buildTime = process.env.NEXT_PUBLIC_BUILD_TIME || Date.now().toString();
+    sessionStorage.setItem('update-dismissed-build', buildTime);
     setUpdateAvailable(false);
   };
 

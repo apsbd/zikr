@@ -64,11 +64,8 @@ class AppUpdater {
       console.log(`  Previous build: ${new Date(parseInt(storedBuildTime)).toISOString()}`);
       console.log(`  Current build: ${new Date(parseInt(this.BUILD_TIME)).toISOString()}`);
       
-      // Just update the stored version info
-      localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
-      localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
-      
-      // Notify that an update is available
+      // Don't update localStorage immediately - wait for user action
+      // This prevents the update loop
       this.handleUpdateAvailable();
     } else if (!storedBuildTime) {
       // First time loading, just store the values
@@ -165,6 +162,10 @@ class AppUpdater {
 
   async forceUpdate() {
     console.log('🔄 Forcing app update...');
+    
+    // Update the stored version info NOW to prevent update loop
+    localStorage.setItem(this.VERSION_KEY, this.CURRENT_VERSION);
+    localStorage.setItem(this.BUILD_TIME_KEY, this.BUILD_TIME);
     
     // Update service worker if available
     if (this.registration) {
