@@ -2,7 +2,7 @@
 console.log('[Simple SW] Loading simple offline service worker');
 
 // Cache name for study pages - increment version to force cache update
-const CACHE_NAME = 'study-pages-v5';
+const CACHE_NAME = 'study-pages-v6';
 const urlsToCache = [
   '/',
   '/offline.html',
@@ -54,6 +54,12 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
+    }).then(() => {
+      // Immediately cache essential offline pages
+      return caches.open(CACHE_NAME).then((cache) => {
+        console.log('[Simple SW] Pre-caching offline pages');
+        return cache.addAll(urlsToCache);
+      });
     })
   );
   self.clients.claim();
@@ -131,15 +137,27 @@ self.addEventListener('fetch', (event) => {
                   }
                   
                   // If no exact match, return static offline-study page
-                  console.log('[Simple SW] No cached study page, returning offline-study-static');
-                  return caches.match('/offline-study-static.html?path=' + encodeURIComponent(url.pathname))
-                    .then(response => {
+                  console.log('[Simple SW] No cached study page, returning offline page');
+                  // First try the offline-study-static page
+                  return caches.match('/offline-study-static.html').then(response => {
+                    if (response) {
+                      return response;
+                    }
+                    // Fallback to general offline page
+                    return caches.match('/offline.html').then(response => {
                       if (response) {
-                        // Clone and modify the response to include the path parameter
                         return response;
                       }
-                      return caches.match('/offline.html');
+                      // Last resort - return a basic offline response
+                      return new Response('Offline - Please check your connection', {
+                        status: 503,
+                        statusText: 'Service Unavailable',
+                        headers: new Headers({
+                          'Content-Type': 'text/plain'
+                        })
+                      });
                     });
+                  });
                 });
               });
             });

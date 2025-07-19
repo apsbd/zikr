@@ -81,16 +81,17 @@ class AppUpdater {
   }
 
   private async clearAppCache() {
-    console.log('🔄 Clearing app cache and service workers...');
+    console.log('🔄 Clearing app cache...');
     
     try {
-      // 1. Unregister all service workers
+      // 1. Update service worker (don't unregister - just update)
       if ('serviceWorker' in navigator) {
         const registrations = await navigator.serviceWorker.getRegistrations();
+        // Force update check for all service workers
         await Promise.all(
           registrations.map(registration => {
-            console.log('Unregistering service worker:', registration.scope);
-            return registration.unregister();
+            console.log('Updating service worker:', registration.scope);
+            return registration.update();
           })
         );
       }
