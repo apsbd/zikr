@@ -47,27 +47,31 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
             setProgress(20);
             setMessage('Uploading your progress to the server...');
             
-            // Perform upload sync (local → server)
+            // Perform upload sync (local → server) with progress callback
             console.log('Calling performManualUpload...');
-            const result = await offlineService.performManualUpload(user.id);
+            const result = await offlineService.performManualUpload(user.id, (progress, message) => {
+                console.log(`Upload Progress: ${progress}% - ${message}`);
+                setProgress(progress);
+                setMessage(message);
+            });
             console.log('Upload result:', result);
             
             setProgress(100);
             
             if (result.success) {
                 setSyncStatus('success');
-                setMessage(`Successfully uploaded ${result.synced_count} items to the server.`);
+                setMessage(`✅ Successfully synced! Uploaded ${result.synced_count} items to the server.`);
             } else {
                 throw new Error('Upload failed');
             }
             
-            // Notify parent component
+            // Wait longer before closing to show success message
             setTimeout(() => {
                 onSyncComplete?.();
                 onOpenChange(false);
                 setSyncStatus('idle');
                 setProgress(0);
-            }, 2000);
+            }, 3500);
             
         } catch (err: any) {
             console.error('Upload error full details:', err);
@@ -92,30 +96,32 @@ export function SyncDialog({ open, onOpenChange, onSyncComplete }: SyncDialogPro
             console.log('Initializing offline service...');
             await offlineService.init();
             
-            setProgress(20);
-            setMessage('Downloading progress from the server...');
-            
-            // Perform download sync (server → local)
+            // Perform download sync (server → local) with progress callback
             console.log('Calling performManualDownload...');
-            const result = await offlineService.performManualDownload(user.id);
+            const result = await offlineService.performManualDownload(user.id, (progress, message) => {
+                console.log(`Progress: ${progress}% - ${message}`);
+                setProgress(progress);
+                setMessage(message);
+            });
             console.log('Download result:', result);
             
             setProgress(100);
             
             if (result.success) {
                 setSyncStatus('success');
-                setMessage(`Successfully downloaded ${result.synced_count} items from the server.`);
+                const totalSynced = result.synced_count;
+                setMessage(`✅ Successfully synced! Downloaded ${totalSynced} items from the server.`);
             } else {
                 throw new Error('Download failed');
             }
             
-            // Notify parent component
+            // Wait longer before closing to show success message
             setTimeout(() => {
                 onSyncComplete?.();
                 onOpenChange(false);
                 setSyncStatus('idle');
                 setProgress(0);
-            }, 2000);
+            }, 3500);
             
         } catch (err: any) {
             console.error('Download error full details:', err);

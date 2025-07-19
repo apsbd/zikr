@@ -70,7 +70,7 @@ export class SyncEngine {
     });
   }
 
-  async performFullSync(userId: string): Promise<SyncResult> {
+  async performFullSync(userId: string, progressCallback?: (progress: number, message: string) => void): Promise<SyncResult> {
     if (this.isFullSyncRunning) {
       console.log('⚠️ Full sync already in progress, skipping...');
       return {
@@ -91,10 +91,12 @@ export class SyncEngine {
     try {
       console.log('🔄 Starting full sync for user:', userId);
       
+      progressCallback?.(10, 'Processing sync queue...');
       console.log('📋 Processing sync queue...');
       await this.syncQueue.processQueue();
       console.log('📋 Sync queue processed');
       
+      progressCallback?.(20, 'Fetching remote data...');
       console.log('📥 Fetching remote data...');
       const [
         remoteDecks,
@@ -118,25 +120,35 @@ export class SyncEngine {
         access: remoteAccess.length
       });
 
+      progressCallback?.(40, 'Syncing decks...');
+      const deckResult = await this.syncEntity(STORE_NAMES.DECKS, remoteDecks);
+      syncedCount += deckResult.syncedCount;
+      failedCount += deckResult.failedCount;
+      conflicts.push(...deckResult.conflicts);
 
-      const syncResults = await Promise.allSettled([
-        this.syncEntity(STORE_NAMES.DECKS, remoteDecks),
-        this.syncEntity(STORE_NAMES.CARDS, remoteCards),
-        this.syncEntity(STORE_NAMES.USER_PROGRESS, remoteProgress),
-        this.syncEntity(STORE_NAMES.USER_PROFILES, remoteProfiles),
-        this.syncEntity(STORE_NAMES.DECK_USER_ACCESS, remoteAccess)
-      ]);
+      progressCallback?.(60, 'Syncing cards...');
+      const cardResult = await this.syncEntity(STORE_NAMES.CARDS, remoteCards);
+      syncedCount += cardResult.syncedCount;
+      failedCount += cardResult.failedCount;
+      conflicts.push(...cardResult.conflicts);
 
-      for (const result of syncResults) {
-        if (result.status === 'fulfilled') {
-          syncedCount += result.value.syncedCount;
-          failedCount += result.value.failedCount;
-          conflicts.push(...result.value.conflicts);
-        } else {
-          console.error('Sync failed:', result.reason);
-          failedCount++;
-        }
-      }
+      progressCallback?.(80, 'Syncing user progress...');
+      const progressResult = await this.syncEntity(STORE_NAMES.USER_PROGRESS, remoteProgress);
+      syncedCount += progressResult.syncedCount;
+      failedCount += progressResult.failedCount;
+      conflicts.push(...progressResult.conflicts);
+
+      progressCallback?.(90, 'Syncing user profiles...');
+      const profileResult = await this.syncEntity(STORE_NAMES.USER_PROFILES, remoteProfiles);
+      syncedCount += profileResult.syncedCount;
+      failedCount += profileResult.failedCount;
+      conflicts.push(...profileResult.conflicts);
+
+      progressCallback?.(95, 'Syncing access permissions...');
+      const accessResult = await this.syncEntity(STORE_NAMES.DECK_USER_ACCESS, remoteAccess);
+      syncedCount += accessResult.syncedCount;
+      failedCount += accessResult.failedCount;
+      conflicts.push(...accessResult.conflicts);
 
       await this.db.setMetadata('last_full_sync', new Date().toISOString());
       
@@ -632,7 +644,7 @@ export class SyncEngine {
 
   // Manual sync methods for explicit user control
   
-  async performUploadSync(userId: string): Promise<SyncResult> {
+  async performUploadSync(userId: string, progressCallback?: (progress: number, message: string) => void): Promise<SyncResult> {
     console.log('📤 Starting manual upload sync (local → server)');
     console.log('User ID:', userId);
     
@@ -651,6 +663,8 @@ export class SyncEngine {
         throw new Error('Database not initialized');
       }
       
+      progressCallback?.(10, 'Fetching local progress...');
+      
       // 1. Get all local user progress
       console.log('Fetching local progress for user:', userId);
       const localProgress = await this.db.getByIndex<OfflineUserProgress>(
@@ -661,46 +675,76 @@ export class SyncEngine {
       
       console.log(`Found ${localProgress.length} local progress records to upload`);
       
-      // 2. Upload each progress record to server (overwrite server data)
-      for (const progress of localProgress) {
+      if (localProgress.length === 0) {
+        result.success = true;
+        return result;
+      }
+      
+      progressCallback?.(30, `Preparing ${localProgress.length} progress records...`);
+      
+      // 2. Upload in batches to avoid overwhelming the server
+      const BATCH_SIZE = 50;
+      const batches = [];
+      
+      for (let i = 0; i < localProgress.length; i += BATCH_SIZE) {
+        batches.push(localProgress.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`Uploading in ${batches.length} batches of up to ${BATCH_SIZE} records each`);
+      
+      let processedCount = 0;
+      
+      // Process each batch
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const progressPercent = 30 + (batchIndex / batches.length) * 60;
+        progressCallback?.(progressPercent, `Uploading batch ${batchIndex + 1} of ${batches.length}...`);
+        
         try {
+          // Prepare batch data for upsert
+          const batchData = batch.map(progress => ({
+            user_id: progress.user_id,
+            card_id: progress.card_id,
+            state: progress.state,
+            difficulty: progress.difficulty,
+            stability: progress.stability,
+            retrievability: progress.retrievability,
+            due: progress.due,
+            elapsed_days: progress.elapsed_days,
+            scheduled_days: progress.scheduled_days,
+            reps: progress.reps,
+            lapses: progress.lapses,
+            last_review: progress.last_review,
+            created_at: progress.created_at,
+            updated_at: progress.updated_at
+          }));
+          
+          // Upload entire batch at once
           const { error } = await this.supabase
             .from('user_progress')
-            .upsert({
-              user_id: progress.user_id,
-              card_id: progress.card_id,
-              state: progress.state,
-              difficulty: progress.difficulty,
-              stability: progress.stability,
-              retrievability: progress.retrievability,
-              due: progress.due,
-              elapsed_days: progress.elapsed_days,
-              scheduled_days: progress.scheduled_days,
-              reps: progress.reps,
-              lapses: progress.lapses,
-              last_review: progress.last_review,
-              created_at: progress.created_at,
-              updated_at: progress.updated_at
-            }, {
+            .upsert(batchData, {
               onConflict: 'user_id,card_id'
             });
           
           if (error) {
-            console.error('Failed to upload progress:', error);
-            result.failed_count++;
+            console.error(`Failed to upload batch ${batchIndex + 1}:`, error);
+            result.failed_count += batch.length;
           } else {
-            result.synced_count++;
+            result.synced_count += batch.length;
+            processedCount += batch.length;
             
-            // Mark as synced locally
-            await this.db.put(STORE_NAMES.USER_PROGRESS, {
-              ...progress,
-              sync_status: SyncStatus.SYNCED,
-              local_changes: false
-            });
+            // Mark batch as synced locally
+            for (const progress of batch) {
+              await this.db.put(STORE_NAMES.USER_PROGRESS, {
+                ...progress,
+                sync_status: SyncStatus.SYNCED,
+                local_changes: false
+              });
+            }
           }
         } catch (err) {
-          console.error('Error uploading progress:', err);
-          result.failed_count++;
+          console.error(`Error uploading batch ${batchIndex + 1}:`, err);
+          result.failed_count += batch.length;
         }
       }
       
@@ -719,7 +763,7 @@ export class SyncEngine {
     return result;
   }
   
-  async performDownloadSync(userId: string): Promise<SyncResult> {
+  async performDownloadSync(userId: string, progressCallback?: (progress: number, message: string) => void): Promise<SyncResult> {
     console.log('📥 Starting manual download sync (server → local)');
     console.log('📥 User ID:', userId);
     
@@ -727,7 +771,7 @@ export class SyncEngine {
       // Use the existing performFullSync method which downloads everything
       // This ensures all decks, cards, and progress are downloaded
       console.log('📥 Calling performFullSync...');
-      const result = await this.performFullSync(userId);
+      const result = await this.performFullSync(userId, progressCallback);
       console.log('📥 performFullSync completed:', result);
       return result;
     } catch (error: any) {

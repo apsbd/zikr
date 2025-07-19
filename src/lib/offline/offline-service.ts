@@ -423,24 +423,24 @@ export class OfflineService {
   }
   
   // Manual sync methods
-  async performManualUpload(userId: string): Promise<SyncResult> {
+  async performManualUpload(userId: string, progressCallback?: (progress: number, message: string) => void): Promise<SyncResult> {
     console.log('🔄 performManualUpload called for user:', userId);
     if (!this.isInitialized) {
       console.log('🔄 Initializing offline service...');
       await this.init();
     }
     console.log('🔄 Calling sync engine performUploadSync...');
-    return this.syncEngine.performUploadSync(userId);
+    return this.syncEngine.performUploadSync(userId, progressCallback);
   }
   
-  async performManualDownload(userId: string): Promise<SyncResult> {
+  async performManualDownload(userId: string, progressCallback?: (progress: number, message: string) => void): Promise<SyncResult> {
     console.log('🔄 performManualDownload called for user:', userId);
     if (!this.isInitialized) {
       console.log('🔄 Initializing offline service...');
       await this.init();
     }
     console.log('🔄 Calling sync engine performDownloadSync...');
-    return this.syncEngine.performDownloadSync(userId);
+    return this.syncEngine.performDownloadSync(userId, progressCallback);
   }
 
   onNetworkChange(callback: (isOnline: boolean) => void): () => void {

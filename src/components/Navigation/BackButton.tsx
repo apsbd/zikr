@@ -16,12 +16,7 @@ export function BackButton({ href, onClick }: BackButtonProps) {
         if (onClick) {
             onClick();
         } else if (href) {
-            // Add refresh param to force reload when going back to dashboard
-            if (href === '/') {
-                router.push(href + '?refresh=' + Date.now());
-            } else {
-                router.push(href);
-            }
+            router.push(href);
         } else {
             router.back();
         }
