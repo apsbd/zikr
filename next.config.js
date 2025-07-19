@@ -5,6 +5,7 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   disable: false, // Enable PWA in all environments for offline testing
   buildExcludes: [/app-build-manifest\.json$/], // Exclude problematic files
+  importScripts: ['/sw-offline-handler.js'], // Import our custom offline handler
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/fonts\.(?:gstatic)\.com\/.*/i,
@@ -117,10 +118,18 @@ const withPWA = require('next-pwa')({
         networkTimeoutSeconds: 3 // Fallback to cache quickly when offline
       }
     },
-    // Cache the main app pages
+    // Cache all app pages (dashboard, study, etc) except admin
     {
-      urlPattern: /^\/(study\/[^\/]+|admin|login|offline-study)?.*/i,
-      handler: 'NetworkFirst',
+      urlPattern: ({ url }) => {
+        const pathname = url.pathname;
+        // Cache everything except admin routes
+        return pathname === '/' || 
+               pathname.startsWith('/study/') || 
+               pathname === '/offline-study' ||
+               pathname === '/login' ||
+               (pathname.startsWith('/') && !pathname.startsWith('/admin') && !pathname.startsWith('/_next') && !pathname.includes('.'));
+      },
+      handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'app-pages',
         plugins: [
@@ -134,10 +143,21 @@ const withPWA = require('next-pwa')({
           }
         ],
         expiration: {
-          maxEntries: 50,
-          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-        },
-        networkTimeoutSeconds: 3
+          maxEntries: 100,
+          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+        }
+      }
+    },
+    // Pre-cache critical pages
+    {
+      urlPattern: ({ url }) => url.pathname === '/',
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'homepage',
+        expiration: {
+          maxEntries: 1,
+          maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+        }
       }
     },
     // Handle Supabase API calls for offline functionality

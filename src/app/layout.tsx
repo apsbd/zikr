@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import NativeAppEnhancements from '@/components/NativeAppEnhancements';
 import IOSChromeFixProvider from '@/components/IOSChromeFixProvider';
 import AppUpdateNotification from '@/components/AppUpdateNotification';
+import { OfflineCacheManager } from '@/components/OfflineCacheManager';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -146,6 +147,7 @@ export default function RootLayout({
                                 {children}
                                 <PWAInstaller />
                                 <AppUpdateNotification />
+                                <OfflineCacheManager />
                             </ClientWrapper>
                         </SyncStatusProvider>
                     </AuthProvider>
